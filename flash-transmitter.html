@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Project Helios: Optical Link</title>
+    <title>Helios: Calibrated</title>
     <style>
         :root { --bg: #000; --panel: #111; --accent: #FFD60A; --text: #eee; }
         body {
@@ -25,75 +25,75 @@
         .screen { display: none; flex: 1; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .screen.active { display: flex; }
 
-        /* BUTTONS & INPUTS */
-        button {
-            width: 100%; max-width: 300px;
-            padding: 15px 30px; font-size: 1rem; border: none; border-radius: 8px;
-            font-weight: bold; cursor: pointer; background: var(--accent); color: #000;
-            margin-top: 10px;
-        }
-        button.secondary { background: #333; color: #fff; }
-        
-        input { 
-            padding: 15px; background: #222; border: 1px solid #444; 
-            color: #fff; border-radius: 8px; font-family: monospace; width: 80%;
-            margin-bottom: 20px; text-align: center; text-transform: uppercase;
-            font-size: 1.2rem;
-        }
-
-        /* TRANSMITTER (PHONE) */
+        /* TRANSMITTER UI */
         #torch-icon {
             width: 120px; height: 120px; border-radius: 50%;
             background: #222; border: 4px solid #444;
             display: flex; align-items: center; justify-content: center;
-            margin-bottom: 20px; font-size: 3rem;
-            transition: 0.1s;
+            margin-bottom: 20px; font-size: 3rem; transition: background 0.1s;
         }
         #torch-icon.on { background: #FFF; box-shadow: 0 0 60px #FFF; border-color: #FFF; color: #000; }
-        
-        #flash-screen {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #FFF; display: none; z-index: 999;
+
+        input { 
+            padding: 15px; background: #222; border: 1px solid #444; 
+            color: #fff; border-radius: 8px; font-family: monospace; width: 80%;
+            margin-bottom: 20px; text-align: center; text-transform: uppercase;
+            font-size: 1.5rem; letter-spacing: 5px;
         }
 
-        /* RECEIVER (LAPTOP) */
+        button {
+            width: 100%; max-width: 300px;
+            padding: 15px 30px; font-size: 1rem; border: none; border-radius: 8px;
+            font-weight: bold; cursor: pointer; background: var(--accent); color: #000;
+        }
+        button:disabled { background: #444; color: #888; cursor: not-allowed; }
+
+        /* RECEIVER UI */
         #cam-box {
             position: relative; width: 320px; height: 240px;
             background: #111; border: 2px solid #555; overflow: hidden;
             margin-bottom: 15px; border-radius: 8px;
         }
-        video { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.2); }
+        video { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.5); }
         
-        #graph { width: 320px; height: 60px; background: #111; border: 1px solid #333; }
+        #graph { width: 320px; height: 50px; background: #111; border: 1px solid #333; }
         
         #rx-msg { 
             font-size: 2rem; color: var(--accent); margin-top: 15px; 
             min-height: 2.5rem; text-shadow: 0 0 10px var(--accent);
-            letter-spacing: 5px;
+            letter-spacing: 3px; border-bottom: 1px solid #333; padding-bottom: 5px;
         }
         
-        .status { font-size: 0.8rem; color: #666; margin-top: 5px; }
+        .status-row {
+            display: flex; justify-content: space-between; width: 320px;
+            font-size: 0.8rem; color: #666; margin-top: 5px;
+        }
+
+        /* Screen Flash Fallback */
+        #screen-flash {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #fff; z-index: 999; display: none;
+        }
 
     </style>
 </head>
 <body>
 
-    <div id="flash-screen"></div>
+    <div id="screen-flash"></div>
 
     <div class="nav">
-        <div class="nav-item active" onclick="setTab('tx')">PHONE (SENDER)</div>
-        <div class="nav-item" onclick="setTab('rx')">LAPTOP (RECEIVER)</div>
+        <div class="nav-item active" onclick="setTab('tx')">PHONE (TX)</div>
+        <div class="nav-item" onclick="setTab('rx')">LAPTOP (RX)</div>
     </div>
 
     <div id="tx-screen" class="screen active">
         <div id="torch-icon">💡</div>
+        <div id="tx-status" style="margin-bottom:10px; font-size:0.8rem; color:#888;">Ready</div>
         
-        <input type="text" id="msg-in" placeholder="HELLO" maxlength="8">
+        <input type="text" id="msg-in" placeholder="HELLO" maxlength="6">
         
-        <button id="enable-btn" onclick="initTx()">ENABLE TORCH</button>
-        <button id="send-btn" onclick="transmit()" style="display:none;">FIRE MESSAGE</button>
-        
-        <div class="status" id="tx-status">Requires Camera Permission</div>
+        <button id="init-btn" onclick="initTx()">ENABLE LIGHT</button>
+        <button id="send-btn" onclick="transmit()" style="display:none;">SEND SIGNAL</button>
     </div>
 
     <div id="rx-screen" class="screen">
@@ -101,14 +101,14 @@
         
         <div id="cam-box">
             <video id="video" autoplay playsinline muted></video>
-            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:20px; height:20px; border:2px solid #FFD60A; box-shadow:0 0 0 100px rgba(0,0,0,0.8);"></div>
+            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:30px; height:30px; border:3px solid #FFD60A; box-shadow:0 0 0 100px rgba(0,0,0,0.85);"></div>
         </div>
 
-        <canvas id="graph" width="320" height="60"></canvas>
+        <canvas id="graph" width="320" height="50"></canvas>
         
-        <div class="status" style="display:flex; justify-content:space-between; width:320px;">
+        <div class="status-row">
             <span id="state-lbl">State: IDLE</span>
-            <span id="luma-lbl">Light: 0</span>
+            <span id="bit-debug"></span>
         </div>
 
         <div id="rx-msg"></div>
@@ -116,9 +116,8 @@
 
     <script>
         // --- CONFIG ---
-        // 250ms is the sweet spot. Fast enough to be cool, slow enough for 
-        // the iPhone torch API (which has a slight lag) to keep up.
-        const BIT_TIME = 250; 
+        const BIT_TIME = 500; // 500ms (Half-second per bit) - SLOW BUT SAFE
+        const PILOT_TIME = 2000; // 2 seconds of light to sync
 
         function setTab(t) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -127,107 +126,96 @@
             event.target.classList.add('active');
         }
 
-        // --- TRANSMITTER (PHONE) ---
+        // --- TRANSMITTER ---
         let track = null;
-        let useScreenFallback = false;
+        let useScreen = false;
         const torchUI = document.getElementById('torch-icon');
-        const flashScreen = document.getElementById('flash-screen');
-        const txStatus = document.getElementById('tx-status');
+        const txStat = document.getElementById('tx-status');
+        const screenFlash = document.getElementById('screen-flash');
 
         async function initTx() {
             try {
-                // Request Back Camera
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment' }
-                });
+                // Try to get back camera with Torch
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
                 track = stream.getVideoTracks()[0];
-                
-                // Detect Torch Support
                 const caps = track.getCapabilities();
+                
                 if (!caps.torch) {
-                    useScreenFallback = true;
-                    txStatus.innerText = "Torch unavailable. Using SCREEN FLASH.";
-                    txStatus.style.color = "#FFD60A";
+                    useScreen = true;
+                    txStat.innerText = "Torch not found. Using SCREEN FLASH.";
+                    txStat.style.color = "#FFD60A";
                 } else {
-                    txStatus.innerText = "Torch System Ready.";
-                    txStatus.style.color = "#0f0";
+                    txStat.innerText = "Torch System Active";
+                    txStat.style.color = "#0f0";
                 }
 
-                document.getElementById('enable-btn').style.display = 'none';
+                document.getElementById('init-btn').style.display = 'none';
                 document.getElementById('send-btn').style.display = 'block';
             } catch(e) { 
-                alert("Camera access denied. Cannot use Torch."); 
+                alert("Camera permission denied."); 
             }
         }
 
         async function transmit() {
             const text = document.getElementById('msg-in').value.toUpperCase();
             if(!text) return;
-            const bits = textToBinary(text);
-
-            // Disable button
+            
             const btn = document.getElementById('send-btn');
             btn.disabled = true;
-            btn.innerText = "TRANSMITTING...";
 
-            // 1. HEADER (The "Attention" Strobe)
-            // Flash 3 times fast to wake up the receiver logic
-            for(let k=0; k<3; k++) {
-                await setLight(true); await wait(BIT_TIME);
-                await setLight(false); await wait(BIT_TIME);
+            // Convert to Binary
+            let bits = "";
+            for (let i = 0; i < text.length; i++) {
+                bits += text.charCodeAt(i).toString(2).padStart(8, '0');
             }
-            await wait(BIT_TIME * 2); // Pause
 
-            // 2. DATA
+            // 1. PILOT TONE (Solid Light for 2s)
+            // This locks the auto-exposure and tells receiver to get ready
+            btn.innerText = "SYNCING (PILOT)...";
+            await setLight(true);
+            await wait(PILOT_TIME);
+
+            // 2. THE DROP (Sync Point)
+            // Turns off. The receiver starts its timer HERE.
+            await setLight(false);
+            await wait(BIT_TIME); // Pause for 1 bit width
+
+            // 3. DATA
+            btn.innerText = "TRANSMITTING...";
             for(let i=0; i<bits.length; i++) {
                 const bit = bits[i] === '1';
                 await setLight(bit);
                 await wait(BIT_TIME);
             }
 
-            // 3. DONE
-            setLight(false);
+            // 4. DONE
+            await setLight(false);
+            btn.innerText = "SEND SIGNAL";
             btn.disabled = false;
-            btn.innerText = "FIRE MESSAGE";
         }
 
         async function setLight(on) {
             torchUI.className = on ? 'on' : '';
-            
-            if(useScreenFallback) {
-                // Flash the entire screen white
-                flashScreen.style.display = on ? 'block' : 'none';
+            if(useScreen) {
+                screenFlash.style.display = on ? 'block' : 'none';
             } else if(track) {
-                // Hardware Torch
-                // We use a try/catch because sometimes applying constraints too fast fails
-                try {
-                    await track.applyConstraints({ advanced: [{ torch: on }] });
-                } catch(e) { console.log("Torch lag skip"); }
+                try { await track.applyConstraints({ advanced: [{ torch: on }] }); } catch(e){}
             }
         }
-
-        function textToBinary(text) {
-            let output = "";
-            for (let i = 0; i < text.length; i++) {
-                output += text.charCodeAt(i).toString(2).padStart(8, '0');
-            }
-            return output;
-        }
-
         const wait = ms => new Promise(r => setTimeout(r, ms));
 
-        // --- RECEIVER (LAPTOP) ---
+
+        // --- RECEIVER ---
         let rxRunning = false;
         const vid = document.getElementById('video');
         const gCtx = document.getElementById('graph').getContext('2d');
-        const cvs = document.createElement('canvas'); 
-        const ctx = cvs.getContext('2d');
+        const cvs = document.createElement('canvas'); const ctx = cvs.getContext('2d');
         
         let history = [];
         let state = "SEARCH";
-        let bitBuf = "";
         let nextSample = 0;
-        let lastLuma = 0;
+        let bitBuf = "";
+        let msg = "";
 
         async function initRx() {
             try {
@@ -242,7 +230,7 @@
         function loop() {
             if(!rxRunning) return;
 
-            // 1. Read Center Pixel Brightness (Small crop 20x20)
+            // 1. Sample Luma
             cvs.width=20; cvs.height=20;
             ctx.drawImage(vid, vid.videoWidth/2-10, vid.videoHeight/2-10, 20, 20, 0, 0, 20, 20);
             const d = ctx.getImageData(0,0,20,20).data;
@@ -250,76 +238,83 @@
             for(let i=0; i<d.length; i+=4) sum += (d[i]+d[i+1]+d[i+2])/3;
             const luma = sum / (d.length/4);
 
-            // 2. Adaptive Thresholding
+            // 2. Threshold
             history.push(luma);
-            if(history.length > 60) history.shift();
+            if(history.length > 100) history.shift();
             const min = Math.min(...history);
             const max = Math.max(...history);
-            // Dynamic threshold is midpoint
-            const thresh = (min+max)/2;
+            const thresh = (min + max) / 2;
             const isHigh = luma > thresh;
 
             const now = Date.now();
+            const stateLbl = document.getElementById('state-lbl');
 
             // 3. State Machine
             if(state === "SEARCH") {
-                // We are looking for the HEADER (Rapid flashes)
-                // If signal goes High, and range is good (>50 difference between black/white)
-                if(isHigh && (max-min > 40)) {
-                    // Check if this is a sustained high or a blip
-                    // Simplified: If we detect high contrast swing, start reading
-                    state = "READ";
-                    // Sync: Assume we hit the leading edge of a bit.
-                    // Wait 1.5x BIT_TIME to align with the center of the *next* bit (Data start)
-                    // Actually, the header is 3 flashes. We can just wait for a long pause?
-                    // Let's keep it simple: Trigger on first High, treat as Start Bit.
-                    nextSample = now + BIT_TIME * 0.5; 
-                    bitBuf = "";
-                    document.getElementById('rx-msg').innerText = "";
-                    document.getElementById('state-lbl').innerText = "State: SYNCED";
-                    document.getElementById('state-lbl').style.color = "#0f0";
+                stateLbl.innerText = "State: WAITING FOR PILOT";
+                stateLbl.style.color = "#666";
+                
+                // Look for sustained HIGH signal (Pilot)
+                // If light is bright and range is good
+                if(luma > 200 && (max-min) > 50) {
+                    state = "LOCKED";
                 }
-            } 
-            else if (state === "READ") {
+            }
+            else if(state === "LOCKED") {
+                stateLbl.innerText = "State: PILOT DETECTED";
+                stateLbl.style.color = "#FFD60A";
+                
+                // Wait for the DROP (High -> Low)
+                if(!isHigh) {
+                    state = "READ";
+                    // The signal just dropped.
+                    // The first data bit starts in BIT_TIME ms.
+                    // We want to sample in the MIDDLE of that bit.
+                    // So we wait: 1 Full Bit + 0.5 Bit
+                    nextSample = now + (BIT_TIME * 1.5);
+                    bitBuf = "";
+                    msg = "";
+                    document.getElementById('rx-msg').innerText = "";
+                    stateLbl.innerText = "State: RECEIVING";
+                    stateLbl.style.color = "#0f0";
+                }
+            }
+            else if(state === "READ") {
                 if(now >= nextSample) {
                     nextSample += BIT_TIME;
-                    bitBuf += isHigh ? "1" : "0";
+                    const bit = isHigh ? "1" : "0";
+                    bitBuf += bit;
+                    
+                    document.getElementById('bit-debug').innerText = bitBuf.slice(-8);
 
-                    // Byte Complete?
                     if(bitBuf.length === 8) {
                         const val = parseInt(bitBuf, 2);
-                        // Filter printable chars
+                        // Only print valid ASCII (A-Z, 0-9, space)
                         if(val >= 32 && val <= 126) {
-                            const char = String.fromCharCode(val);
-                            document.getElementById('rx-msg').innerText += char;
+                            msg += String.fromCharCode(val);
+                            document.getElementById('rx-msg').innerText = msg;
                         }
                         bitBuf = "";
                     }
                 }
-                
-                // Timeout logic: If no high signal for 3 seconds, reset
-                // Or if contrast drops (user turned off light)
-                if(now > nextSample + 3000) {
-                    state = "SEARCH";
-                    document.getElementById('state-lbl').innerText = "State: IDLE";
-                    document.getElementById('state-lbl').style.color = "#666";
-                }
+                // Timeout (3s of silence)
+                if(now > nextSample + 3000) state = "SEARCH";
             }
 
-            // 4. Draw Graph
-            gCtx.fillStyle="#000"; gCtx.fillRect(0,0,320,60);
+            // Draw Graph
+            gCtx.fillStyle="#111"; gCtx.fillRect(0,0,320,50);
             
-            // Draw Threshold Line
-            const thY = 60 - (thresh/255)*60;
-            gCtx.fillStyle="#333"; gCtx.fillRect(0, thY, 320, 1);
-
-            // Draw Signal Dot
-            gCtx.fillStyle = isHigh ? "#FFD60A" : "#444"; 
-            const y = 60 - (luma/255)*60;
-            gCtx.fillRect(155, y, 10, 10);
-
-            // Stats
-            document.getElementById('luma-lbl').innerText = "Luma: " + Math.round(luma);
+            // Draw Signal Bar
+            const h = 50;
+            const y = h - (luma/255)*h;
+            const tY = h - (thresh/255)*h;
+            
+            // Threshold Line (Blue)
+            gCtx.fillStyle="blue"; gCtx.fillRect(0, tY, 320, 1);
+            
+            // Signal Dot
+            gCtx.fillStyle = isHigh ? "#FFD60A" : "#333";
+            gCtx.fillRect(150, y-2, 20, 4);
 
             requestAnimationFrame(loop);
         }
