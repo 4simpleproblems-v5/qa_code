@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Project Prism: Spectral Link</title>
+    <title>Prism v2: High Contrast</title>
     <style>
-        :root { --bg: #000; --text: #fff; }
+        :root { --bg: #000; --text: #fff; --accent: #fff; }
         body {
             background-color: var(--bg); color: var(--text);
             font-family: 'Courier New', monospace; margin: 0;
@@ -14,12 +14,12 @@
         }
 
         /* NAV */
-        .nav { display: flex; height: 50px; border-bottom: 1px solid #333; }
+        .nav { display: flex; height: 60px; border-bottom: 1px solid #333; }
         .nav-item {
             flex: 1; display: flex; align-items: center; justify-content: center;
             background: #111; cursor: pointer; font-weight: bold; border-right: 1px solid #333;
         }
-        .nav-item.active { background: #333; color: #fff; border-bottom: 2px solid #fff; }
+        .nav-item.active { background: #333; color: #fff; border-bottom: 4px solid #fff; }
 
         .view { display: none; flex: 1; flex-direction: column; align-items: center; padding: 20px; }
         .view.active { display: flex; }
@@ -29,14 +29,14 @@
             width: 300px; height: 300px; margin-bottom: 20px;
             background: #000; border: 4px solid #fff;
             display: flex; align-items: center; justify-content: center;
-            font-size: 2rem; font-weight: bold; color: #000;
-            text-shadow: 0 0 5px rgba(255,255,255,0.5);
+            font-size: 3rem; font-weight: bold; color: #fff;
+            text-shadow: 0 0 10px #000;
         }
 
         .controls { width: 100%; max-width: 300px; display: flex; flex-direction: column; gap: 10px; }
         input[type="text"] { 
             padding: 15px; background: #222; border: 1px solid #444; color: #fff; 
-            text-align: center; font-family: monospace; font-size: 1.2rem;
+            text-align: center; font-family: monospace; font-size: 1.5rem;
         }
         button { 
             padding: 15px; border: none; border-radius: 4px; font-weight: bold; 
@@ -55,15 +55,13 @@
             padding: 10px; color: #fff; font-size: 1.5rem; overflow-wrap: break-word;
         }
         
-        .hue-bar {
-            width: 300px; height: 20px; background: linear-gradient(to right, red, yellow, lime, cyan, blue, magenta, red);
-            margin-bottom: 5px; position: relative;
-        }
-        #hue-cursor {
-            position: absolute; top:0; left:0; width:4px; height:20px; background:#fff; border:1px solid #000;
+        .stat-row { 
+            width: 300px; display: flex; justify-content: space-between; 
+            font-size: 0.9rem; color: #aaa; margin-bottom: 10px;
+            font-weight: bold;
         }
 
-        .stat-row { width: 300px; display: flex; justify-content: space-between; font-size: 0.8rem; color: #888; }
+        #detected-color { color: #fff; text-transform: uppercase; }
 
     </style>
 </head>
@@ -79,10 +77,10 @@
 
         <div class="controls">
             <input type="text" id="tx-input" value="RGB-DATA" placeholder="Message">
-            <button id="tx-btn" onclick="transmit()">SEND (Base-8 Color)</button>
+            <button id="tx-btn" onclick="transmit()">SEND (4-Color)</button>
         </div>
-        <div style="font-size:0.7rem; color:#666; margin-top:10px; text-align:center;">
-            Uses Hue Shift Keying (HSK).<br>8 Colors = 3 bits per flash.
+        <div style="font-size:0.75rem; color:#888; margin-top:15px; text-align:center;">
+            Red(00) Green(01)<br>Blue(10) Magenta(11)
         </div>
     </div>
 
@@ -91,14 +89,12 @@
         
         <div id="cam-container">
             <video id="video" autoplay playsinline muted></video>
-            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:50px; height:50px; border:3px solid #fff; border-radius:50%; box-shadow:0 0 0 100px rgba(0,0,0,0.8);"></div>
+            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:40px; height:40px; border:4px solid #fff; border-radius:50%; box-shadow:0 0 0 100px rgba(0,0,0,0.85);"></div>
         </div>
         
-        <div class="hue-bar"><div id="hue-cursor"></div></div>
-        
         <div class="stat-row">
-            <span id="state-lbl">State: IDLE</span>
-            <span id="hue-lbl">Hue: 0°</span>
+            <span id="state-lbl">IDLE</span>
+            <span>SEES: <span id="detected-color">---</span></span>
         </div>
 
         <div id="rx-log"></div>
@@ -106,33 +102,15 @@
 
     <script>
         // --- CONFIG ---
-        const FRAME_MS = 300; // 300ms per color chunk
+        const FRAME_MS = 350; // Slower for better color accuracy
         const PILOT_MS = 2000;
 
-        // Color Map (Hue Values)
-        // 0: Red (0°), 1: Orange (45°), 2: Yellow (60->90?), Let's space them evenly
-        // Base-8 Map: 000->111
-        // We divide 360 degrees by 8 = 45 degree steps
-        // 0: 0° (Red)
-        // 1: 45° (Orange/Yellow)
-        // 2: 90° (Chartreuse)
-        // 3: 135° (Green)
-        // 4: 180° (Cyan)
-        // 5: 225° (Blue)
-        // 6: 270° (Purple)
-        // 7: 315° (Magenta)
-        
-        const HUES = [0, 45, 90, 135, 180, 225, 270, 315];
-        const COLORS = [
-            'hsl(0,100%,50%)',   // 0
-            'hsl(45,100%,50%)',  // 1
-            'hsl(90,100%,50%)',  // 2
-            'hsl(135,100%,50%)', // 3
-            'hsl(180,100%,50%)', // 4
-            'hsl(225,100%,50%)', // 5
-            'hsl(270,100%,50%)', // 6
-            'hsl(315,100%,50%)'  // 7
-        ];
+        // Base-4 Color Map (High Contrast)
+        // 00: Red (0 deg)
+        // 01: Green (120 deg)
+        // 10: Blue (240 deg)
+        // 11: Magenta (300 deg)
+        const HEX_CODES = ['#FF0000', '#00FF00', '#0000FF', '#FF00FF'];
 
         function setView(v) {
             document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
@@ -154,33 +132,35 @@
             for(let i=0; i<text.length; i++) {
                 bits += text.charCodeAt(i).toString(2).padStart(8, "0");
             }
-            // Pad to multiple of 3 (Base-8 needs 3 bits per symbol)
-            while(bits.length % 3 !== 0) bits += "0";
+            // Pad to multiple of 2 (Base-4)
+            if(bits.length % 2 !== 0) bits += "0";
 
             // 1. PILOT (White)
             box.style.background = "#FFF";
             box.innerText = "PILOT";
+            box.style.color = "#000";
             await wait(PILOT_MS);
 
             // 2. SYNC (Black Drop)
             box.style.background = "#000";
             box.innerText = "";
-            await wait(FRAME_MS * 1.5);
+            await wait(FRAME_MS * 2);
 
-            // 3. DATA (Octal)
+            // 3. DATA (Quaternary)
             btn.innerText = "SENDING...";
+            box.style.color = "#FFF"; // Text color for visibility
             
-            for(let i=0; i<bits.length; i+=3) {
-                const chunk = bits.substring(i, i+3);
+            for(let i=0; i<bits.length; i+=2) {
+                const chunk = bits.substring(i, i+2);
                 const val = parseInt(chunk, 2);
                 
-                box.style.background = COLORS[val];
-                box.innerText = val; // Debug number
+                box.style.background = HEX_CODES[val];
+                // box.innerText = chunk; // Debug text
                 await wait(FRAME_MS);
             }
 
             box.style.background = "#000";
-            btn.innerText = "SEND (Base-8)";
+            btn.innerText = "SEND (4-Color)";
             btn.disabled = false;
         }
         const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -189,12 +169,12 @@
         // --- RECEIVER ---
         let rxRunning = false;
         const vid = document.getElementById('video');
-        const cvs = document.createElement('canvas'); const ctx = cvs.getContext('2d', { willReadFrequently: true });
+        const cvs = document.createElement('canvas'); 
+        const ctx = cvs.getContext('2d', { willReadFrequently: true });
         
         const log = document.getElementById('rx-log');
         const stateLbl = document.getElementById('state-lbl');
-        const hueLbl = document.getElementById('hue-lbl');
-        const cursor = document.getElementById('hue-cursor');
+        const colorLbl = document.getElementById('detected-color');
 
         let state = "SEARCH";
         let nextSample = 0;
@@ -215,83 +195,88 @@
             if(!rxRunning) return;
 
             // 1. Read Center Pixel
-            cvs.width=20; cvs.height=20;
-            ctx.drawImage(vid, vid.videoWidth/2-10, vid.videoHeight/2-10, 20, 20, 0, 0, 20, 20);
-            const d = ctx.getImageData(0,0,20,20).data;
+            cvs.width=30; cvs.height=30;
+            ctx.drawImage(vid, vid.videoWidth/2-15, vid.videoHeight/2-15, 30, 30, 0, 0, 30, 30);
+            const d = ctx.getImageData(0,0,30,30).data;
             
             // Average RGB
             let r=0, g=0, b=0;
             for(let i=0; i<d.length; i+=4) { r+=d[i]; g+=d[i+1]; b+=d[i+2]; }
-            r /= 400; g /= 400; b /= 400;
+            r /= 900; g /= 900; b /= 900;
 
-            // Convert to HSL (We only need Hue and Lightness)
-            const hsl = rgbToHsl(r, g, b); // h [0-360], s [0-1], l [0-1]
+            const hsl = rgbToHsl(r, g, b); 
             const h = hsl[0];
+            const s = hsl[1];
             const l = hsl[2];
 
-            // UI Update
-            cursor.style.left = (h / 360 * 300) + "px";
-            hueLbl.innerText = `Hue: ${Math.round(h)}° L: ${Math.round(l*100)}%`;
+            // 2. Classify Color
+            let detected = "DARK";
+            let val = -1;
 
+            if(l > 0.8 && s < 0.2) {
+                detected = "WHITE (PILOT)";
+            } else if (l < 0.25) {
+                detected = "DARK";
+            } else {
+                // Determine Hue (Robust Zones)
+                // Red: 330-360 OR 0-30
+                // Green: 80-160
+                // Blue: 200-260
+                // Magenta: 270-330
+                
+                if(h >= 340 || h <= 30) { detected = "RED"; val = 0; colorLbl.style.color = "#FF4444"; }
+                else if (h >= 80 && h <= 160) { detected = "GREEN"; val = 1; colorLbl.style.color = "#44FF44"; }
+                else if (h >= 200 && h <= 260) { detected = "BLUE"; val = 2; colorLbl.style.color = "#4444FF"; }
+                else if (h >= 270 && h <= 330) { detected = "MAGENTA"; val = 3; colorLbl.style.color = "#FF44FF"; }
+                else { detected = "UNCERTAIN"; colorLbl.style.color = "#888"; }
+            }
+            
+            colorLbl.innerText = detected;
+
+            // 3. State Machine
             const now = Date.now();
 
-            // 3. Logic
             if(state === "SEARCH") {
-                stateLbl.innerText = "WAIT FOR PILOT (WHITE)";
-                // White is Low Saturation, High Lightness
-                // But simplified: Pilot is just super bright
-                if(l > 0.8) state = "PILOT";
+                stateLbl.innerText = "WAIT FOR WHITE";
+                stateLbl.style.color = "#888";
+                if(detected === "WHITE (PILOT)") state = "PILOT";
             }
             else if(state === "PILOT") {
                 stateLbl.innerText = "LOCKED";
-                stateLbl.style.color = "#FFD60A";
-                // Wait for Drop (Black)
-                if(l < 0.2) {
+                stateLbl.style.color = "#FFF";
+                // Wait for Drop to DARK
+                if(detected === "DARK") {
                     state = "READ";
-                    // Sync: Align to center of next frame
-                    // We wait Drop(black) + Half Frame
-                    nextSample = now + (FRAME_MS * 1.5); 
+                    nextSample = now + (FRAME_MS * 1.5);
                     bitBuffer = "";
                     log.innerText = "";
                     stateLbl.innerText = "RECEIVING";
-                    stateLbl.style.color = "#00ff00";
+                    stateLbl.style.color = "#0f0";
                 }
             }
             else if(state === "READ") {
                 if(now >= nextSample) {
                     nextSample += FRAME_MS;
                     
-                    // Decode Hue to Octal (0-7)
-                    // We find the closest match in our HUES array
-                    let closestDiff = 999;
-                    let val = 0;
-                    
-                    for(let i=0; i<8; i++) {
-                        // Handle circular wraparound (355 is close to 0)
-                        let diff = Math.abs(h - HUES[i]);
-                        if(diff > 180) diff = 360 - diff;
-                        
-                        if(diff < closestDiff) {
-                            closestDiff = diff;
-                            val = i;
-                        }
-                    }
+                    if(val !== -1) {
+                        const bits = val.toString(2).padStart(2, "0");
+                        bitBuffer += bits;
 
-                    // Append 3 bits
-                    const bits = val.toString(2).padStart(3, "0");
-                    bitBuffer += bits;
-
-                    // Decode Bytes
-                    while(bitBuffer.length >= 8) {
-                        const byte = bitBuffer.substring(0, 8);
-                        bitBuffer = bitBuffer.substring(8);
-                        const charCode = parseInt(byte, 2);
-                        if(charCode >= 32 && charCode <= 126) {
-                            log.innerText += String.fromCharCode(charCode);
+                        // Decode Bytes
+                        while(bitBuffer.length >= 8) {
+                            const byte = bitBuffer.substring(0, 8);
+                            bitBuffer = bitBuffer.substring(8);
+                            const charCode = parseInt(byte, 2);
+                            if(charCode >= 32 && charCode <= 126) {
+                                log.innerText += String.fromCharCode(charCode);
+                            }
                         }
+                    } else {
+                        // If we read "Uncertain" or "Dark" in the middle of a stream,
+                        // we likely assume it's the previous color or just hold.
+                        // For simplicity, we ignore invalid frames (risky but keeps sync better than guessing)
                     }
                 }
-                
                 if(now > nextSample + 3000) state = "SEARCH";
             }
 
