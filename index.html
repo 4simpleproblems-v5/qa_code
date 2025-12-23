@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Silent QA Code (Night Mode)</title>
+    <style>
+        :root { --primary: #5e5ce6; --bg: #1c1c1e; --text: #f2f2f7; --card: #2c2c2e; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            text-align: center;
+            padding: 20px;
+            margin: 0;
+            transition: background-color 0.8s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 { margin-bottom: 5px; font-size: 1.5rem; color: #bf5af2; }
+        p { margin-top: 0; color: #8e8e93; font-size: 0.9rem; }
+
+        .container {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            max-width: 400px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.8rem;
+            color: #aeaeb2;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #3a3a3c;
+            padding-bottom: 5px;
+        }
+
+        /* Controls */
+        input[type="color"] {
+            border: none;
+            width: 60px;
+            height: 60px;
+            cursor: pointer;
+            background: none;
+        }
+
+        /* Volume Slider */
+        .vol-control { margin: 15px 0; width: 100%; display: flex; align-items: center; justify-content: space-between; }
+        input[type="range"] { width: 70%; accent-color: var(--primary); }
+        label { font-size: 0.8rem; color: #aeaeb2; }
+
+        button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin-top: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            color: white;
+            background-color: var(--primary);
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+        button:active { transform: scale(0.98); }
+        button:disabled { background-color: #48484a; cursor: not-allowed; color: #8e8e93; }
+
+        #rx-status {
+            font-family: monospace;
+            background: #000;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            min-height: 20px;
+            font-size: 0.9rem;
+            border: 1px solid #3a3a3c;
+            color: #32d74b;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>Silent QA Code</h1>
+    <p>Near-Ultrasonic Data Transfer (18kHz+)</p>
+
+    <div class="container">
+        <div class="section-title">Transmitter (Laptop)</div>
+        <p>Pick a color.</p>
+        <input type="color" id="colorPicker" value="#FF5733">
+        
+        <div class="vol-control">
+            <label for="volumeSlider">Volume:</label>
+            <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.1">
+            <span id="volValue">10%</span>
+        </div>
+
+        <button id="broadcastBtn">Broadcast (Silent)</button>
+    </div>
+
+    <div class="container">
+        <div class="section-title">Receiver (iPhone)</div>
+        <p>Requires microphone access.</p>
+        <button id="listenBtn">Start Listening</button>
+        <div id="rx-status">Status: Idle</div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        // Range: 18.5kHz to 20.5kHz (Near Ultrasonic)
+        // Most adults can't hear this.
+        const MIN_FREQ = 18500;
+        const MAX_FREQ = 20500;
+        const SYNC_FREQ = 17500; // Header tone (Lower to be distinct)
+        
+        // Timing (Slower is safer for high freq reliability)
+        const SYNC_DURATION = 0.6;
+        const DATA_DURATION = 0.8; 
+        const GAP = 0.2; 
+
+        // --- UTILS ---
+        function valToFreq(val) {
+            // Map 0-255 to 18500-20500
+            return MIN_FREQ + (val * ((MAX_FREQ - MIN_FREQ) / 255));
+        }
+
+        function freqToVal(freq) {
+            if (freq < MIN_FREQ) freq = MIN_FREQ;
+            if (freq > MAX_FREQ) freq = MAX_FREQ;
+            return Math.round((freq - MIN_FREQ) * (255 / (MAX_FREQ - MIN_FREQ)));
+        }
+
+        function hexToRgb(hex) {
+            const bigint = parseInt(hex.substring(1), 16);
+            return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+        }
+
+        // --- TRANSMITTER ---
+        const broadcastBtn = document.getElementById('broadcastBtn');
+        const colorPicker = document.getElementById('colorPicker');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const volValue = document.getElementById('volValue');
+        let audioCtxTx = null;
+
+        volumeSlider.addEventListener('input', (e) => {
+            volValue.innerText = Math.round(e.target.value * 100) + "%";
+        });
+
+        broadcastBtn.addEventListener('click', () => {
+            if (!audioCtxTx) audioCtxTx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtxTx.state === 'suspended') audioCtxTx.resume();
+
+            const rgb = hexToRgb(colorPicker.value);
+            playSequence(rgb);
+        });
+
+        function playSequence(rgb) {
+            const t0 = audioCtxTx.currentTime + 0.1;
+            const vol = parseFloat(volumeSlider.value);
+
+            // 1. Sync Tone
+            playTone(SYNC_FREQ, t0, SYNC_DURATION, vol);
+
+            const tRed = t0 + SYNC_DURATION + GAP;
+            const tGreen = tRed + DATA_DURATION + GAP;
+            const tBlue = tGreen + DATA_DURATION + GAP;
+
+            // 2. Data Tones
+            playTone(valToFreq(rgb[0]), tRed, DATA_DURATION, vol);
+            playTone(valToFreq(rgb[1]), tGreen, DATA_DURATION, vol);
+            playTone(valToFreq(rgb[2]), tBlue, DATA_DURATION, vol);
+
+            broadcastBtn.innerText = "Transmitting...";
+            broadcastBtn.disabled = true;
+
+            setTimeout(() => {
+                broadcastBtn.innerText = "Broadcast (Silent)";
+                broadcastBtn.disabled = false;
+            }, (tBlue + DATA_DURATION - t0) * 1000 + 200);
+        }
+
+        function playTone(freq, startTime, duration, masterVol) {
+            const osc = audioCtxTx.createOscillator();
+            const gain = audioCtxTx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            
+            // Envelope for smooth entry/exit
+            gain.gain.setValueAtTime(0, startTime);
+            gain.gain.linearRampToValueAtTime(masterVol, startTime + 0.1);
+            gain.gain.setValueAtTime(masterVol, startTime + duration - 0.1);
+            gain.gain.linearRampToValueAtTime(0, startTime + duration);
+
+            osc.connect(gain);
+            gain.connect(audioCtxTx.destination);
+
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+        }
+
+        // --- RECEIVER ---
+        const listenBtn = document.getElementById('listenBtn');
+        const statusDiv = document.getElementById('rx-status');
+        let audioCtxRx, analyser, micSource;
+        let isListening = false;
+        let rxState = 'IDLE'; 
+
+        listenBtn.addEventListener('click', async () => {
+            try {
+                audioCtxRx = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioCtxRx.createAnalyser();
+                analyser.fftSize = 4096; // Higher res needed for high freq precision
+
+                // CRITICAL: Disable processing that filters high pitch sounds
+                const constraints = {
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false
+                    }
+                };
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                micSource = audioCtxRx.createMediaStreamSource(stream);
+                micSource.connect(analyser);
+
+                listenBtn.style.display = 'none';
+                statusDiv.innerText = "Listening for Sync (17.5kHz)...";
+                isListening = true;
+                listenLoop();
+            } catch (e) {
+                alert("Microphone error: " + e.message);
+            }
+        });
+
+        function listenLoop() {
+            if (!isListening) return;
+            requestAnimationFrame(listenLoop);
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+
+            let maxVal = 0;
+            let maxIndex = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                if (dataArray[i] > maxVal) {
+                    maxVal = dataArray[i];
+                    maxIndex = i;
+                }
+            }
+
+            // Signal strength threshold (lower for high freq as mic sensitivity drops)
+            if (maxVal < 50) return; 
+
+            const domFreq = maxIndex * (audioCtxRx.sampleRate / analyser.fftSize);
+
+            if (rxState === 'IDLE') {
+                // Look for Sync (~17500Hz)
+                if (Math.abs(domFreq - SYNC_FREQ) < 150) {
+                    rxState = 'SYNCED';
+                    statusDiv.innerText = "Sync Detected! Decoding...";
+                    
+                    // Timing Logic (matches transmitter + gaps)
+                    // Sync(600) + Gap(200) + Half_Red(400) = 1200ms
+                    setTimeout(() => sampleColor(0), 1200); 
+                    // 1200 + Half_Red(400) + Gap(200) + Half_Green(400) = 2200ms
+                    setTimeout(() => sampleColor(1), 2200);
+                    // 2200 + Half_Green(400) + Gap(200) + Half_Blue(400) = 3200ms
+                    setTimeout(() => sampleColor(2), 3200);
+                }
+            }
+        }
+
+        let receivedRgb = [0, 0, 0];
+
+        function sampleColor(index) {
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+
+            let maxVal = 0;
+            let maxIndex = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                if (dataArray[i] > maxVal) {
+                    maxVal = dataArray[i];
+                    maxIndex = i;
+                }
+            }
+            
+            const domFreq = maxIndex * (audioCtxRx.sampleRate / analyser.fftSize);
+            const val = freqToVal(domFreq);
+            receivedRgb[index] = val;
+
+            const labels = ['Red', 'Green', 'Blue'];
+            statusDiv.innerText = `Reading ${labels[index]}: ${val}`;
+
+            if (index === 2) {
+                const [r, g, b] = receivedRgb;
+                document.body.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+                
+                // Text Contrast
+                const luma = (r * 299 + g * 587 + b * 114) / 1000;
+                document.body.style.color = luma > 128 ? 'black' : 'white';
+                
+                setTimeout(() => {
+                    rxState = 'IDLE';
+                    statusDiv.innerText = "Done. Waiting for next...";
+                }, 1000);
+            }
+        }
+    </script>
+</body>
+</html>
