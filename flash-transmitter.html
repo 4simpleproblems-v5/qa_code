@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hyper-Grid v2: Atomic</title>
+    <title>Project Prism: Spectral Link</title>
     <style>
-        :root { --bg: #000; --text: #0f0; --accent: #00ff00; --err: #ff0000; }
+        :root { --bg: #000; --text: #fff; }
         body {
             background-color: var(--bg); color: var(--text);
             font-family: 'Courier New', monospace; margin: 0;
@@ -17,41 +17,30 @@
         .nav { display: flex; height: 50px; border-bottom: 1px solid #333; }
         .nav-item {
             flex: 1; display: flex; align-items: center; justify-content: center;
-            background: #111; cursor: pointer; font-weight: bold; border-right: 1px solid #333; color: #666;
+            background: #111; cursor: pointer; font-weight: bold; border-right: 1px solid #333;
         }
-        .nav-item.active { background: #112211; color: var(--accent); border-bottom: 2px solid var(--accent); }
+        .nav-item.active { background: #333; color: #fff; border-bottom: 2px solid #fff; }
 
-        .view { display: none; flex: 1; flex-direction: column; align-items: center; padding: 10px; }
+        .view { display: none; flex: 1; flex-direction: column; align-items: center; padding: 20px; }
         .view.active { display: flex; }
 
         /* TRANSMITTER */
-        #grid-wrapper {
-            position: relative; width: 300px; height: 300px; margin-bottom: 20px;
-            border: 4px solid #fff; padding: 2px;
-        }
-        #tx-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            grid-template-rows: repeat(4, 1fr);
-            width: 100%; height: 100%; gap: 2px;
-        }
-        .cell {
-            background: #000; border: 1px solid #222;
+        #prism-box {
+            width: 300px; height: 300px; margin-bottom: 20px;
+            background: #000; border: 4px solid #fff;
             display: flex; align-items: center; justify-content: center;
-            font-size: 1rem; color: #444; font-weight: bold;
+            font-size: 2rem; font-weight: bold; color: #000;
+            text-shadow: 0 0 5px rgba(255,255,255,0.5);
         }
-        .cell.on { background: #FFF; color: #000; }
-        
-        #c0::after { content: "CLK"; font-size: 0.6rem; }
 
         .controls { width: 100%; max-width: 300px; display: flex; flex-direction: column; gap: 10px; }
         input[type="text"] { 
-            padding: 15px; background: #111; border: 1px solid #333; color: #fff; 
-            text-align: center; width: 100%; font-family: monospace; font-size: 1.2rem;
+            padding: 15px; background: #222; border: 1px solid #444; color: #fff; 
+            text-align: center; font-family: monospace; font-size: 1.2rem;
         }
         button { 
             padding: 15px; border: none; border-radius: 4px; font-weight: bold; 
-            cursor: pointer; background: var(--accent); color: #000; font-size: 1rem;
+            cursor: pointer; background: #fff; color: #000; font-size: 1rem;
         }
 
         /* RECEIVER */
@@ -59,48 +48,41 @@
             position: relative; width: 300px; height: 300px;
             background: #000; border: 2px solid #555; overflow: hidden; margin-bottom: 10px;
         }
-        video { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.5) brightness(1.2); }
+        video { width: 100%; height: 100%; object-fit: cover; }
         
-        /* The Mesh Overlay */
-        #overlay { position: absolute; top:0; left:0; width:100%; height:100%; }
-
-        /* Realtime Binary View */
-        #binary-view {
-            display: grid; grid-template-columns: repeat(4, 1fr); 
-            width: 100px; height: 100px; border: 1px solid #333; margin-bottom: 10px;
-            gap: 1px;
-        }
-        .bin-cell { background: #111; }
-        .bin-cell.on { background: var(--accent); }
-
         #rx-log { 
             width: 300px; height: 60px; background: #111; border: 1px solid #333; 
-            padding: 10px; color: var(--accent); font-size: 1.2rem; overflow-wrap: break-word;
+            padding: 10px; color: #fff; font-size: 1.5rem; overflow-wrap: break-word;
         }
         
-        .slider-row { width: 300px; display: flex; align-items: center; justify-content: space-between; font-size: 0.7rem; color: #888; margin-bottom: 5px; }
-        input[type="range"] { flex: 1; margin: 0 10px; accent-color: var(--accent); }
+        .hue-bar {
+            width: 300px; height: 20px; background: linear-gradient(to right, red, yellow, lime, cyan, blue, magenta, red);
+            margin-bottom: 5px; position: relative;
+        }
+        #hue-cursor {
+            position: absolute; top:0; left:0; width:4px; height:20px; background:#fff; border:1px solid #000;
+        }
+
+        .stat-row { width: 300px; display: flex; justify-content: space-between; font-size: 0.8rem; color: #888; }
 
     </style>
 </head>
 <body>
 
     <div class="nav">
-        <div class="nav-item active" onclick="setView('tx')">SENDER</div>
-        <div class="nav-item" onclick="setView('rx')">RECEIVER</div>
+        <div class="nav-item active" onclick="setView('tx')">PRISM (TX)</div>
+        <div class="nav-item" onclick="setView('rx')">CAMERA (RX)</div>
     </div>
 
     <div id="tx-view" class="view active">
-        <div id="grid-wrapper">
-            <div id="tx-grid"></div>
-        </div>
+        <div id="prism-box">READY</div>
 
         <div class="controls">
-            <input type="text" id="tx-input" value="HYPER-GRID" placeholder="Message">
-            <button id="tx-btn" onclick="transmit()">SEND (Atomic Mode)</button>
+            <input type="text" id="tx-input" value="RGB-DATA" placeholder="Message">
+            <button id="tx-btn" onclick="transmit()">SEND (Base-8 Color)</button>
         </div>
         <div style="font-size:0.7rem; color:#666; margin-top:10px; text-align:center;">
-            1 Letter Per Frame. <br>Impossible to desync.
+            Uses Hue Shift Keying (HSK).<br>8 Colors = 3 bits per flash.
         </div>
     </div>
 
@@ -109,53 +91,48 @@
         
         <div id="cam-container">
             <video id="video" autoplay playsinline muted></video>
-            <canvas id="overlay" width="300" height="300"></canvas>
+            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:50px; height:50px; border:3px solid #fff; border-radius:50%; box-shadow:0 0 0 100px rgba(0,0,0,0.8);"></div>
         </div>
         
-        <div style="display:flex; width:300px; gap:10px; align-items:center;">
-            <div id="binary-view">
-                </div>
-            <div style="flex:1;">
-                <div class="slider-row">
-                    <span>ZOOM</span>
-                    <input type="range" id="inset-slider" min="0" max="120" value="40">
-                </div>
-                <div id="rx-log"></div>
-            </div>
+        <div class="hue-bar"><div id="hue-cursor"></div></div>
+        
+        <div class="stat-row">
+            <span id="state-lbl">State: IDLE</span>
+            <span id="hue-lbl">Hue: 0°</span>
         </div>
 
-        <div style="width:300px; display:flex; justify-content:space-between; font-size:0.8rem; color:#888; margin-top:5px;">
-            <span id="state-lbl">ALIGN GRID</span>
-            <span>Use Zoom Slider</span>
-        </div>
+        <div id="rx-log"></div>
     </div>
 
     <script>
         // --- CONFIG ---
-        const FRAME_MS = 400; // 400ms per character
+        const FRAME_MS = 300; // 300ms per color chunk
         const PILOT_MS = 2000;
 
-        // Generate Grids
-        const txGrid = document.getElementById('tx-grid');
-        const binView = document.getElementById('binary-view');
-        const txCells = [];
-        const binCells = [];
-
-        for(let i=0; i<16; i++) {
-            // Main TX cells
-            let d = document.createElement('div');
-            d.id = 'c'+i; d.className = 'cell';
-            if(i===0) d.innerText = "CLK";
-            else if(i<=8) d.innerText = "B"+(8-i); // Bits
-            txGrid.appendChild(d);
-            txCells.push(d);
-
-            // Mini RX cells
-            let b = document.createElement('div');
-            b.className = 'bin-cell';
-            binView.appendChild(b);
-            binCells.push(b);
-        }
+        // Color Map (Hue Values)
+        // 0: Red (0°), 1: Orange (45°), 2: Yellow (60->90?), Let's space them evenly
+        // Base-8 Map: 000->111
+        // We divide 360 degrees by 8 = 45 degree steps
+        // 0: 0° (Red)
+        // 1: 45° (Orange/Yellow)
+        // 2: 90° (Chartreuse)
+        // 3: 135° (Green)
+        // 4: 180° (Cyan)
+        // 5: 225° (Blue)
+        // 6: 270° (Purple)
+        // 7: 315° (Magenta)
+        
+        const HUES = [0, 45, 90, 135, 180, 225, 270, 315];
+        const COLORS = [
+            'hsl(0,100%,50%)',   // 0
+            'hsl(45,100%,50%)',  // 1
+            'hsl(90,100%,50%)',  // 2
+            'hsl(135,100%,50%)', // 3
+            'hsl(180,100%,50%)', // 4
+            'hsl(225,100%,50%)', // 5
+            'hsl(270,100%,50%)', // 6
+            'hsl(315,100%,50%)'  // 7
+        ];
 
         function setView(v) {
             document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
@@ -165,76 +142,63 @@
         }
 
         // --- TRANSMITTER ---
+        const box = document.getElementById('prism-box');
+        
         async function transmit() {
             const text = document.getElementById('tx-input').value;
             const btn = document.getElementById('tx-btn');
             btn.disabled = true;
 
-            // 1. PILOT (All White)
-            btn.innerText = "PILOT...";
-            setAll(true);
+            // Convert to binary
+            let bits = "";
+            for(let i=0; i<text.length; i++) {
+                bits += text.charCodeAt(i).toString(2).padStart(8, "0");
+            }
+            // Pad to multiple of 3 (Base-8 needs 3 bits per symbol)
+            while(bits.length % 3 !== 0) bits += "0";
+
+            // 1. PILOT (White)
+            box.style.background = "#FFF";
+            box.innerText = "PILOT";
             await wait(PILOT_MS);
 
-            // 2. SYNC (All Black)
-            btn.innerText = "SYNC...";
-            setAll(false);
-            await wait(FRAME_MS * 2);
+            // 2. SYNC (Black Drop)
+            box.style.background = "#000";
+            box.innerText = "";
+            await wait(FRAME_MS * 1.5);
 
-            // 3. DATA (1 Char per Frame)
-            btn.innerText = "TRANSMITTING...";
-            let clk = false;
-
-            for(let i=0; i<text.length; i++) {
-                clk = !clk; // Toggle Clock (Cell 0)
-                setCell(0, clk);
-
-                // Get ASCII bits (8 bits)
-                // We send MSB at Cell 1, LSB at Cell 8
-                const charCode = text.charCodeAt(i);
+            // 3. DATA (Octal)
+            btn.innerText = "SENDING...";
+            
+            for(let i=0; i<bits.length; i+=3) {
+                const chunk = bits.substring(i, i+3);
+                const val = parseInt(chunk, 2);
                 
-                for(let b=0; b<8; b++) {
-                    // Check bit (7-b because we want high bits first)
-                    const on = (charCode >> (7-b)) & 1;
-                    setCell(b+1, on);
-                    
-                    // Inverted copy in bottom half (redundancy visual)
-                    // If we wanted error check we could use this, but for now just mirror or leave black
-                    // Let's leave black to keep contrast high
-                }
-
+                box.style.background = COLORS[val];
+                box.innerText = val; // Debug number
                 await wait(FRAME_MS);
             }
 
-            setAll(false);
-            btn.innerText = "SEND (Atomic)";
+            box.style.background = "#000";
+            btn.innerText = "SEND (Base-8)";
             btn.disabled = false;
         }
-
-        function setCell(idx, on) { txCells[idx].className = on ? 'cell on' : 'cell'; }
-        function setAll(on) { txCells.forEach(c => c.className = on ? 'cell on' : 'cell'); }
         const wait = ms => new Promise(r => setTimeout(r, ms));
 
 
         // --- RECEIVER ---
         let rxRunning = false;
         const vid = document.getElementById('video');
-        const overlay = document.getElementById('overlay');
-        const oCtx = overlay.getContext('2d');
+        const cvs = document.createElement('canvas'); const ctx = cvs.getContext('2d', { willReadFrequently: true });
+        
         const log = document.getElementById('rx-log');
         const stateLbl = document.getElementById('state-lbl');
-        
-        // Processing Canvas
-        const cvs = document.createElement('canvas'); 
-        const ctx = cvs.getContext('2d', { willReadFrequently: true });
+        const hueLbl = document.getElementById('hue-lbl');
+        const cursor = document.getElementById('hue-cursor');
 
-        // Logic
-        let lastClk = -1;
         let state = "SEARCH";
-        let gridInset = 40;
-
-        document.getElementById('inset-slider').addEventListener('input', (e) => {
-            gridInset = parseInt(e.target.value);
-        });
+        let nextSample = 0;
+        let bitBuffer = "";
 
         async function startRx() {
             try {
@@ -250,101 +214,108 @@
         function loop() {
             if(!rxRunning) return;
 
-            // 1. Snapshot
-            cvs.width = 300; cvs.height = 300;
-            ctx.drawImage(vid, 0, 0, 300, 300);
-            const frame = ctx.getImageData(0,0,300,300).data;
-
-            // 2. Read 4x4 Grid
-            const size = 300 - (gridInset * 2);
-            const cellSize = size / 4;
-            const start = gridInset;
-            const readings = []; 
+            // 1. Read Center Pixel
+            cvs.width=20; cvs.height=20;
+            ctx.drawImage(vid, vid.videoWidth/2-10, vid.videoHeight/2-10, 20, 20, 0, 0, 20, 20);
+            const d = ctx.getImageData(0,0,20,20).data;
             
-            oCtx.clearRect(0,0,300,300);
-            oCtx.strokeStyle = "rgba(0, 255, 0, 0.5)";
-            oCtx.lineWidth = 1;
-            oCtx.beginPath();
+            // Average RGB
+            let r=0, g=0, b=0;
+            for(let i=0; i<d.length; i+=4) { r+=d[i]; g+=d[i+1]; b+=d[i+2]; }
+            r /= 400; g /= 400; b /= 400;
 
-            for(let i=0; i<16; i++) {
-                const x = i % 4;
-                const y = Math.floor(i / 4);
-                
-                const cx = start + (x * cellSize) + (cellSize/2);
-                const cy = start + (y * cellSize) + (cellSize/2);
-                
-                // Draw Grid
-                oCtx.rect(start + x*cellSize, start + y*cellSize, cellSize, cellSize);
+            // Convert to HSL (We only need Hue and Lightness)
+            const hsl = rgbToHsl(r, g, b); // h [0-360], s [0-1], l [0-1]
+            const h = hsl[0];
+            const l = hsl[2];
 
-                // Sample Luma
-                const luma = getAvgLuma(frame, cx, cy);
-                const on = luma > 100; // Threshold
-                readings.push(on ? 1 : 0);
+            // UI Update
+            cursor.style.left = (h / 360 * 300) + "px";
+            hueLbl.innerText = `Hue: ${Math.round(h)}° L: ${Math.round(l*100)}%`;
 
-                // Update Mini-View
-                binCells[i].className = on ? 'bin-cell on' : 'bin-cell';
-            }
-            oCtx.stroke();
+            const now = Date.now();
 
             // 3. Logic
-            const clk = readings[0]; 
-
             if(state === "SEARCH") {
-                const sum = readings.reduce((a,b)=>a+b,0);
-                // Wait for PILOT (All 16 on)
-                if(sum >= 15) state = "PILOT";
+                stateLbl.innerText = "WAIT FOR PILOT (WHITE)";
+                // White is Low Saturation, High Lightness
+                // But simplified: Pilot is just super bright
+                if(l > 0.8) state = "PILOT";
             }
             else if(state === "PILOT") {
-                stateLbl.innerText = "LOCKED - WAIT";
-                stateLbl.style.color = "#FFF";
-                const sum = readings.reduce((a,b)=>a+b,0);
-                // Wait for Drop (All 0)
-                if(sum <= 1) {
+                stateLbl.innerText = "LOCKED";
+                stateLbl.style.color = "#FFD60A";
+                // Wait for Drop (Black)
+                if(l < 0.2) {
                     state = "READ";
-                    lastClk = 0; 
+                    // Sync: Align to center of next frame
+                    // We wait Drop(black) + Half Frame
+                    nextSample = now + (FRAME_MS * 1.5); 
+                    bitBuffer = "";
                     log.innerText = "";
                     stateLbl.innerText = "RECEIVING";
-                    stateLbl.style.color = "#0f0";
+                    stateLbl.style.color = "#00ff00";
                 }
             }
             else if(state === "READ") {
-                // Wait for Clock Toggle
-                if(clk !== lastClk) {
-                    lastClk = clk;
+                if(now >= nextSample) {
+                    nextSample += FRAME_MS;
                     
-                    // Decode Atomic Frame (Cells 1-8 are Bits 7-0)
-                    let byteVal = 0;
-                    for(let b=0; b<8; b++) {
-                        if(readings[b+1]) {
-                            byteVal |= (1 << (7-b));
+                    // Decode Hue to Octal (0-7)
+                    // We find the closest match in our HUES array
+                    let closestDiff = 999;
+                    let val = 0;
+                    
+                    for(let i=0; i<8; i++) {
+                        // Handle circular wraparound (355 is close to 0)
+                        let diff = Math.abs(h - HUES[i]);
+                        if(diff > 180) diff = 360 - diff;
+                        
+                        if(diff < closestDiff) {
+                            closestDiff = diff;
+                            val = i;
                         }
                     }
 
-                    // Print Char
-                    if(byteVal >= 32 && byteVal <= 126) {
-                        const char = String.fromCharCode(byteVal);
-                        log.innerText += char;
-                        log.scrollTop = log.scrollHeight;
+                    // Append 3 bits
+                    const bits = val.toString(2).padStart(3, "0");
+                    bitBuffer += bits;
+
+                    // Decode Bytes
+                    while(bitBuffer.length >= 8) {
+                        const byte = bitBuffer.substring(0, 8);
+                        bitBuffer = bitBuffer.substring(8);
+                        const charCode = parseInt(byte, 2);
+                        if(charCode >= 32 && charCode <= 126) {
+                            log.innerText += String.fromCharCode(charCode);
+                        }
                     }
                 }
+                
+                if(now > nextSample + 3000) state = "SEARCH";
             }
 
             requestAnimationFrame(loop);
         }
 
-        function getAvgLuma(data, x, y) {
-            let sum = 0; let c = 0;
-            x = Math.floor(x); y = Math.floor(y);
-            for(let dy=-3; dy<=3; dy++) {
-                for(let dx=-3; dx<=3; dx++) {
-                    const i = ((y+dy)*300 + (x+dx)) * 4;
-                    if(i>=0 && i<data.length) {
-                        sum += (data[i] + data[i+1] + data[i+2]) / 3;
-                        c++;
-                    }
+        // RGB to HSL helper
+        function rgbToHsl(r, g, b) {
+            r /= 255, g /= 255, b /= 255;
+            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+            let h, s, l = (max + min) / 2;
+
+            if (max === min) { h = s = 0; } 
+            else {
+                const d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                switch (max) {
+                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                    case g: h = (b - r) / d + 2; break;
+                    case b: h = (r - g) / d + 4; break;
                 }
+                h /= 6;
             }
-            return sum/c;
+            return [h * 360, s, l];
         }
 
     </script>
