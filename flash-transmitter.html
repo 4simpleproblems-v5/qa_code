@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Project Hyper-Grid</title>
+    <title>Hyper-Grid v2: Atomic</title>
     <style>
-        :root { --bg: #050505; --text: #0f0; --dim: #003300; --accent: #00ff00; }
+        :root { --bg: #000; --text: #0f0; --accent: #00ff00; --err: #ff0000; }
         body {
             background-color: var(--bg); color: var(--text);
             font-family: 'Courier New', monospace; margin: 0;
@@ -13,69 +13,71 @@
             overflow: hidden; -webkit-user-select: none;
         }
 
-        /* UI STRUCTURE */
+        /* NAV */
         .nav { display: flex; height: 50px; border-bottom: 1px solid #333; }
         .nav-item {
             flex: 1; display: flex; align-items: center; justify-content: center;
             background: #111; cursor: pointer; font-weight: bold; border-right: 1px solid #333; color: #666;
         }
-        .nav-item.active { background: var(--dim); color: var(--accent); border-bottom: 2px solid var(--accent); }
+        .nav-item.active { background: #112211; color: var(--accent); border-bottom: 2px solid var(--accent); }
 
         .view { display: none; flex: 1; flex-direction: column; align-items: center; padding: 10px; }
         .view.active { display: flex; }
 
-        /* TRANSMITTER 4x4 GRID */
+        /* TRANSMITTER */
         #grid-wrapper {
             position: relative; width: 300px; height: 300px; margin-bottom: 20px;
-            border: 2px solid #333; padding: 5px;
+            border: 4px solid #fff; padding: 2px;
         }
         #tx-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             grid-template-rows: repeat(4, 1fr);
-            width: 100%; height: 100%;
-            gap: 2px;
+            width: 100%; height: 100%; gap: 2px;
         }
         .cell {
             background: #000; border: 1px solid #222;
             display: flex; align-items: center; justify-content: center;
-            font-size: 0.8rem; color: #444; font-weight: bold;
+            font-size: 1rem; color: #444; font-weight: bold;
         }
-        .cell.on { background: #FFF; color: #000; border-color: #FFF; }
+        .cell.on { background: #FFF; color: #000; }
         
-        /* The Clock Cell (Top Left) */
-        #c0 { border: 2px solid var(--accent); } 
         #c0::after { content: "CLK"; font-size: 0.6rem; }
 
         .controls { width: 100%; max-width: 300px; display: flex; flex-direction: column; gap: 10px; }
         input[type="text"] { 
             padding: 15px; background: #111; border: 1px solid #333; color: #fff; 
-            text-align: center; width: 100%; box-sizing: border-box; font-family: monospace;
+            text-align: center; width: 100%; font-family: monospace; font-size: 1.2rem;
         }
         button { 
             padding: 15px; border: none; border-radius: 4px; font-weight: bold; 
             cursor: pointer; background: var(--accent); color: #000; font-size: 1rem;
         }
-        button:disabled { background: #333; color: #555; }
 
         /* RECEIVER */
         #cam-container {
             position: relative; width: 300px; height: 300px;
             background: #000; border: 2px solid #555; overflow: hidden; margin-bottom: 10px;
         }
-        video { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.3) brightness(1.1); }
+        video { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.5) brightness(1.2); }
         
-        /* Visual Debug Canvas */
-        #overlay {
-            position: absolute; top:0; left:0; width:100%; height:100%;
+        /* The Mesh Overlay */
+        #overlay { position: absolute; top:0; left:0; width:100%; height:100%; }
+
+        /* Realtime Binary View */
+        #binary-view {
+            display: grid; grid-template-columns: repeat(4, 1fr); 
+            width: 100px; height: 100px; border: 1px solid #333; margin-bottom: 10px;
+            gap: 1px;
         }
+        .bin-cell { background: #111; }
+        .bin-cell.on { background: var(--accent); }
 
         #rx-log { 
-            width: 300px; height: 100px; background: #111; border: 1px solid #333; 
-            padding: 10px; color: var(--accent); font-size: 1rem; overflow-y: auto;
-            word-break: break-all;
+            width: 300px; height: 60px; background: #111; border: 1px solid #333; 
+            padding: 10px; color: var(--accent); font-size: 1.2rem; overflow-wrap: break-word;
         }
-
+        
         .slider-row { width: 300px; display: flex; align-items: center; justify-content: space-between; font-size: 0.7rem; color: #888; margin-bottom: 5px; }
         input[type="range"] { flex: 1; margin: 0 10px; accent-color: var(--accent); }
 
@@ -84,22 +86,21 @@
 <body>
 
     <div class="nav">
-        <div class="nav-item active" onclick="setView('tx')">SENDER (4x4)</div>
+        <div class="nav-item active" onclick="setView('tx')">SENDER</div>
         <div class="nav-item" onclick="setView('rx')">RECEIVER</div>
     </div>
 
     <div id="tx-view" class="view active">
         <div id="grid-wrapper">
-            <div id="tx-grid">
-                </div>
+            <div id="tx-grid"></div>
         </div>
 
         <div class="controls">
-            <input type="text" id="tx-input" value="HYPER-GRID ACTIVE" placeholder="Message">
-            <button id="tx-btn" onclick="transmit()">SEND (15 bits/frame)</button>
+            <input type="text" id="tx-input" value="HYPER-GRID" placeholder="Message">
+            <button id="tx-btn" onclick="transmit()">SEND (Atomic Mode)</button>
         </div>
         <div style="font-size:0.7rem; color:#666; margin-top:10px; text-align:center;">
-            Speed: 450ms/frame (High Reliability)
+            1 Letter Per Frame. <br>Impossible to desync.
         </div>
     </div>
 
@@ -110,36 +111,50 @@
             <video id="video" autoplay playsinline muted></video>
             <canvas id="overlay" width="300" height="300"></canvas>
         </div>
-
-        <div class="slider-row">
-            <span>GRID SIZE</span>
-            <input type="range" id="inset-slider" min="0" max="100" value="20">
-            <span>ANGLE</span>
+        
+        <div style="display:flex; width:300px; gap:10px; align-items:center;">
+            <div id="binary-view">
+                </div>
+            <div style="flex:1;">
+                <div class="slider-row">
+                    <span>ZOOM</span>
+                    <input type="range" id="inset-slider" min="0" max="120" value="40">
+                </div>
+                <div id="rx-log"></div>
+            </div>
         </div>
 
-        <div class="slider-row">
-            <span id="state-lbl">IDLE</span>
-            <span id="angle-stat">0°</span>
+        <div style="width:300px; display:flex; justify-content:space-between; font-size:0.8rem; color:#888; margin-top:5px;">
+            <span id="state-lbl">ALIGN GRID</span>
+            <span>Use Zoom Slider</span>
         </div>
-
-        <div id="rx-log">Waiting...</div>
     </div>
 
     <script>
         // --- CONFIG ---
-        const FRAME_MS = 450; // Slower frame rate for stability
+        const FRAME_MS = 400; // 400ms per character
         const PILOT_MS = 2000;
 
-        // Generate Grid UI
-        const gridEl = document.getElementById('tx-grid');
-        const cells = [];
+        // Generate Grids
+        const txGrid = document.getElementById('tx-grid');
+        const binView = document.getElementById('binary-view');
+        const txCells = [];
+        const binCells = [];
+
         for(let i=0; i<16; i++) {
-            const d = document.createElement('div');
-            d.id = 'c'+i;
-            d.className = 'cell';
-            d.innerText = i === 0 ? "" : i;
-            gridEl.appendChild(d);
-            cells.push(d);
+            // Main TX cells
+            let d = document.createElement('div');
+            d.id = 'c'+i; d.className = 'cell';
+            if(i===0) d.innerText = "CLK";
+            else if(i<=8) d.innerText = "B"+(8-i); // Bits
+            txGrid.appendChild(d);
+            txCells.push(d);
+
+            // Mini RX cells
+            let b = document.createElement('div');
+            b.className = 'bin-cell';
+            binView.appendChild(b);
+            binCells.push(b);
         }
 
         function setView(v) {
@@ -155,16 +170,8 @@
             const btn = document.getElementById('tx-btn');
             btn.disabled = true;
 
-            // Convert to Binary
-            let bits = "";
-            for(let i=0; i<text.length; i++) {
-                bits += text.charCodeAt(i).toString(2).padStart(8, "0");
-            }
-            // Pad to multiple of 15 (Since we send 15 data bits per frame)
-            while(bits.length % 15 !== 0) bits += "0";
-
             // 1. PILOT (All White)
-            btn.innerText = "CALIBRATING...";
+            btn.innerText = "PILOT...";
             setAll(true);
             await wait(PILOT_MS);
 
@@ -173,31 +180,38 @@
             setAll(false);
             await wait(FRAME_MS * 2);
 
-            // 3. DATA STREAM
+            // 3. DATA (1 Char per Frame)
             btn.innerText = "TRANSMITTING...";
             let clk = false;
 
-            // Process 15 bits at a time
-            for(let i=0; i<bits.length; i+=15) {
+            for(let i=0; i<text.length; i++) {
                 clk = !clk; // Toggle Clock (Cell 0)
                 setCell(0, clk);
 
-                // Set Cells 1-15
-                for(let k=0; k<15; k++) {
-                    // Safety check if we run out of bits
-                    const bit = (i+k < bits.length) ? bits[i+k] === '1' : false;
-                    setCell(k+1, bit);
+                // Get ASCII bits (8 bits)
+                // We send MSB at Cell 1, LSB at Cell 8
+                const charCode = text.charCodeAt(i);
+                
+                for(let b=0; b<8; b++) {
+                    // Check bit (7-b because we want high bits first)
+                    const on = (charCode >> (7-b)) & 1;
+                    setCell(b+1, on);
+                    
+                    // Inverted copy in bottom half (redundancy visual)
+                    // If we wanted error check we could use this, but for now just mirror or leave black
+                    // Let's leave black to keep contrast high
                 }
+
                 await wait(FRAME_MS);
             }
 
             setAll(false);
-            btn.innerText = "SEND (15 bits/frame)";
+            btn.innerText = "SEND (Atomic)";
             btn.disabled = false;
         }
 
-        function setCell(idx, on) { cells[idx].className = on ? 'cell on' : 'cell'; }
-        function setAll(on) { cells.forEach(c => c.className = on ? 'cell on' : 'cell'); }
+        function setCell(idx, on) { txCells[idx].className = on ? 'cell on' : 'cell'; }
+        function setAll(on) { txCells.forEach(c => c.className = on ? 'cell on' : 'cell'); }
         const wait = ms => new Promise(r => setTimeout(r, ms));
 
 
@@ -208,7 +222,6 @@
         const oCtx = overlay.getContext('2d');
         const log = document.getElementById('rx-log');
         const stateLbl = document.getElementById('state-lbl');
-        const angleStat = document.getElementById('angle-stat');
         
         // Processing Canvas
         const cvs = document.createElement('canvas'); 
@@ -216,11 +229,9 @@
 
         // Logic
         let lastClk = -1;
-        let bitBuffer = "";
         let state = "SEARCH";
-        let gridInset = 20;
+        let gridInset = 40;
 
-        // UI Slider
         document.getElementById('inset-slider').addEventListener('input', (e) => {
             gridInset = parseInt(e.target.value);
         });
@@ -244,101 +255,76 @@
             ctx.drawImage(vid, 0, 0, 300, 300);
             const frame = ctx.getImageData(0,0,300,300).data;
 
-            // 2. Calculate Grid Points (Perspective Mesh)
-            // We use the 'gridInset' to shrink the sampling area
+            // 2. Read 4x4 Grid
             const size = 300 - (gridInset * 2);
             const cellSize = size / 4;
             const start = gridInset;
-            
-            // We store the read values here (0 or 1)
             const readings = []; 
             
-            // Clear Overlay
             oCtx.clearRect(0,0,300,300);
-            
-            // Draw The "Mesh" (Shows angle/alignment)
             oCtx.strokeStyle = "rgba(0, 255, 0, 0.5)";
             oCtx.lineWidth = 1;
             oCtx.beginPath();
 
-            // Loop 4x4
-            for(let y=0; y<4; y++) {
-                for(let x=0; x<4; x++) {
-                    // Calculate center of this cell
-                    const cx = start + (x * cellSize) + (cellSize/2);
-                    const cy = start + (y * cellSize) + (cellSize/2);
-                    
-                    // Draw grid line (Visual only)
-                    oCtx.rect(start + x*cellSize, start + y*cellSize, cellSize, cellSize);
+            for(let i=0; i<16; i++) {
+                const x = i % 4;
+                const y = Math.floor(i / 4);
+                
+                const cx = start + (x * cellSize) + (cellSize/2);
+                const cy = start + (y * cellSize) + (cellSize/2);
+                
+                // Draw Grid
+                oCtx.rect(start + x*cellSize, start + y*cellSize, cellSize, cellSize);
 
-                    // Read Luma at center
-                    const luma = getAvgLuma(frame, cx, cy);
-                    
-                    // Threshold (Simple > 100 for high contrast screens)
-                    const on = luma > 100;
-                    readings.push(on ? 1 : 0);
+                // Sample Luma
+                const luma = getAvgLuma(frame, cx, cy);
+                const on = luma > 100; // Threshold
+                readings.push(on ? 1 : 0);
 
-                    // Draw Sample Dot
-                    oCtx.fillStyle = on ? "#0f0" : "#333";
-                    oCtx.fillRect(cx-3, cy-3, 6, 6);
-                }
+                // Update Mini-View
+                binCells[i].className = on ? 'bin-cell on' : 'bin-cell';
             }
             oCtx.stroke();
 
-            // 3. Angle Calculation (Fake/Visual)
-            // Calculate brightness delta between Top-Left and Bottom-Right to guess "glare" angle
-            // This is just a visual helper
-            const tl = getAvgLuma(frame, start, start);
-            const br = getAvgLuma(frame, 300-start, 300-start);
-            const tilt = Math.round((tl - br) / 10);
-            angleStat.innerText = `Light Tilt: ${tilt}`;
+            // 3. Logic
+            const clk = readings[0]; 
 
-
-            // 4. Decode Logic
-            const clk = readings[0]; // Cell 0 is Clock
-            
             if(state === "SEARCH") {
-                stateLbl.innerText = "ALIGN GRID";
-                // If all cells are ON (Pilot)
                 const sum = readings.reduce((a,b)=>a+b,0);
-                if(sum === 16) state = "PILOT";
+                // Wait for PILOT (All 16 on)
+                if(sum >= 15) state = "PILOT";
             }
             else if(state === "PILOT") {
-                stateLbl.innerText = "LOCKED";
+                stateLbl.innerText = "LOCKED - WAIT";
                 stateLbl.style.color = "#FFF";
-                // Wait for all OFF (Sync drop)
                 const sum = readings.reduce((a,b)=>a+b,0);
-                if(sum === 0) {
+                // Wait for Drop (All 0)
+                if(sum <= 1) {
                     state = "READ";
-                    lastClk = 0; // Expecting Clock High next
-                    bitBuffer = "";
+                    lastClk = 0; 
                     log.innerText = "";
                     stateLbl.innerText = "RECEIVING";
                     stateLbl.style.color = "#0f0";
                 }
             }
             else if(state === "READ") {
-                // DDR: Read on clock toggle
+                // Wait for Clock Toggle
                 if(clk !== lastClk) {
                     lastClk = clk;
                     
-                    // Cells 1-15 are data
-                    // reading array index corresponds to cell index
-                    for(let i=1; i<16; i++) {
-                        bitBuffer += readings[i];
+                    // Decode Atomic Frame (Cells 1-8 are Bits 7-0)
+                    let byteVal = 0;
+                    for(let b=0; b<8; b++) {
+                        if(readings[b+1]) {
+                            byteVal |= (1 << (7-b));
+                        }
                     }
 
-                    // Decode Bytes
-                    while(bitBuffer.length >= 8) {
-                        const byte = bitBuffer.substring(0, 8);
-                        bitBuffer = bitBuffer.substring(8);
-                        
-                        const val = parseInt(byte, 2);
-                        // Filter for printable ASCII
-                        if(val >= 32 && val <= 126) {
-                            log.innerText += String.fromCharCode(val);
-                            log.scrollTop = log.scrollHeight;
-                        }
+                    // Print Char
+                    if(byteVal >= 32 && byteVal <= 126) {
+                        const char = String.fromCharCode(byteVal);
+                        log.innerText += char;
+                        log.scrollTop = log.scrollHeight;
                     }
                 }
             }
@@ -347,12 +333,10 @@
         }
 
         function getAvgLuma(data, x, y) {
-            // 5x5 sampling
-            let sum = 0;
-            let c = 0;
+            let sum = 0; let c = 0;
             x = Math.floor(x); y = Math.floor(y);
-            for(let dy=-2; dy<=2; dy++) {
-                for(let dx=-2; dx<=2; dx++) {
+            for(let dy=-3; dy<=3; dy++) {
+                for(let dx=-3; dx<=3; dx++) {
                     const i = ((y+dy)*300 + (x+dx)) * 4;
                     if(i>=0 && i<data.length) {
                         sum += (data[i] + data[i+1] + data[i+2]) / 3;
