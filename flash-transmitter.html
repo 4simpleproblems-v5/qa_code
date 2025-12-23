@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Helios: Calibrated</title>
+    <title>Project Quad-Link: Parallel Optical</title>
     <style>
-        :root { --bg: #000; --panel: #111; --accent: #FFD60A; --text: #eee; }
+        :root { --bg: #000; --text: #eee; --accent: #00D1FF; }
         body {
             background-color: var(--bg); color: var(--text);
             font-family: 'Courier New', monospace; margin: 0;
@@ -13,194 +13,171 @@
             overflow: hidden; -webkit-user-select: none;
         }
 
-        /* NAVIGATION */
-        .nav { display: flex; height: 60px; border-bottom: 1px solid #333; }
+        /* NAV */
+        .nav { display: flex; height: 50px; border-bottom: 1px solid #333; }
         .nav-item {
             flex: 1; display: flex; align-items: center; justify-content: center;
-            background: #1a1a1a; cursor: pointer; font-weight: bold; font-size: 1.1rem;
-            color: #666;
+            background: #111; cursor: pointer; font-weight: bold; border-right: 1px solid #333;
         }
         .nav-item.active { background: var(--accent); color: #000; }
 
-        .screen { display: none; flex: 1; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-        .screen.active { display: flex; }
+        .view { display: none; flex: 1; flex-direction: column; align-items: center; padding: 10px; }
+        .view.active { display: flex; }
 
-        /* TRANSMITTER UI */
-        #torch-icon {
-            width: 120px; height: 120px; border-radius: 50%;
-            background: #222; border: 4px solid #444;
+        /* TRANSMITTER GRID */
+        #tx-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            width: 300px; height: 300px;
+            border: 1px solid #333;
+            margin-bottom: 20px;
+        }
+        .quad {
+            background: #000;
             display: flex; align-items: center; justify-content: center;
-            margin-bottom: 20px; font-size: 3rem; transition: background 0.1s;
+            font-size: 2rem; color: #555; font-weight: bold;
+            border: 1px solid #111;
         }
-        #torch-icon.on { background: #FFF; box-shadow: 0 0 60px #FFF; border-color: #FFF; color: #000; }
+        .quad.on { background: #FFF; color: #000; }
+        
+        /* Labels */
+        #q0::after { content: "CLK"; font-size: 1rem; }
+        #q1::after { content: "D0"; font-size: 1rem; }
+        #q2::after { content: "D1"; font-size: 1rem; }
+        #q3::after { content: "D2"; font-size: 1rem; }
 
-        input { 
-            padding: 15px; background: #222; border: 1px solid #444; 
-            color: #fff; border-radius: 8px; font-family: monospace; width: 80%;
-            margin-bottom: 20px; text-align: center; text-transform: uppercase;
-            font-size: 1.5rem; letter-spacing: 5px;
-        }
-
-        button {
-            width: 100%; max-width: 300px;
-            padding: 15px 30px; font-size: 1rem; border: none; border-radius: 8px;
-            font-weight: bold; cursor: pointer; background: var(--accent); color: #000;
-        }
-        button:disabled { background: #444; color: #888; cursor: not-allowed; }
-
-        /* RECEIVER UI */
-        #cam-box {
-            position: relative; width: 320px; height: 240px;
-            background: #111; border: 2px solid #555; overflow: hidden;
-            margin-bottom: 15px; border-radius: 8px;
+        .controls { width: 100%; max-width: 300px; display: flex; flex-direction: column; gap: 10px; }
+        input[type="text"] { padding: 10px; background: #222; border: 1px solid #444; color: #fff; text-align: center; }
+        button { padding: 15px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; background: var(--accent); }
+        
+        /* RECEIVER */
+        #cam-container {
+            position: relative; width: 300px; height: 300px;
+            background: #000; border: 2px solid #555; overflow: hidden; margin-bottom: 10px;
         }
         video { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.5); }
         
-        #graph { width: 320px; height: 50px; background: #111; border: 1px solid #333; }
-        
-        #rx-msg { 
-            font-size: 2rem; color: var(--accent); margin-top: 15px; 
-            min-height: 2.5rem; text-shadow: 0 0 10px var(--accent);
-            letter-spacing: 3px; border-bottom: 1px solid #333; padding-bottom: 5px;
-        }
-        
-        .status-row {
-            display: flex; justify-content: space-between; width: 320px;
-            font-size: 0.8rem; color: #666; margin-top: 5px;
+        /* The Visual Debugger overlays */
+        .debug-pt {
+            position: absolute; width: 10px; height: 10px;
+            background: red; border-radius: 50%; transform: translate(-50%, -50%);
+            z-index: 10;
         }
 
-        /* Screen Flash Fallback */
-        #screen-flash {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #fff; z-index: 999; display: none;
+        #rx-log { 
+            width: 300px; height: 60px; background: #111; border: 1px solid #333; 
+            overflow-y: scroll; font-size: 0.8rem; padding: 5px; color: #0f0; 
+            word-break: break-all;
         }
+        
+        .stat-row { display: flex; justify-content: space-between; width: 300px; font-size: 0.8rem; color: #888; }
 
     </style>
 </head>
 <body>
 
-    <div id="screen-flash"></div>
-
     <div class="nav">
-        <div class="nav-item active" onclick="setTab('tx')">PHONE (TX)</div>
-        <div class="nav-item" onclick="setTab('rx')">LAPTOP (RX)</div>
+        <div class="nav-item active" onclick="setView('tx')">TX (4-CORE)</div>
+        <div class="nav-item" onclick="setView('rx')">RX (CAM)</div>
     </div>
 
-    <div id="tx-screen" class="screen active">
-        <div id="torch-icon">💡</div>
-        <div id="tx-status" style="margin-bottom:10px; font-size:0.8rem; color:#888;">Ready</div>
-        
-        <input type="text" id="msg-in" placeholder="HELLO" maxlength="6">
-        
-        <button id="init-btn" onclick="initTx()">ENABLE LIGHT</button>
-        <button id="send-btn" onclick="transmit()" style="display:none;">SEND SIGNAL</button>
+    <div id="tx-view" class="view active">
+        <div id="tx-grid">
+            <div id="q0" class="quad"></div> <div id="q1" class="quad"></div> <div id="q2" class="quad"></div> <div id="q3" class="quad"></div> </div>
+
+        <div class="controls">
+            <input type="text" id="tx-input" value="QUAD-LINK SYSTEM READY" placeholder="Message">
+            <button onclick="transmit()">TRANSMIT (3x SPEED)</button>
+        </div>
+        <div style="margin-top:10px; font-size:0.7rem; color:#666;">
+            Top-Left Square is the MASTER CLOCK.<br>
+            Receiver syncs to its strobe.
+        </div>
     </div>
 
-    <div id="rx-screen" class="screen">
-        <button id="cam-btn" onclick="initRx()">START WEBCAM</button>
+    <div id="rx-view" class="view">
+        <button id="cam-btn" onclick="startRx()" style="width:300px; margin-bottom:10px;">START CAMERA</button>
         
-        <div id="cam-box">
+        <div id="cam-container">
             <video id="video" autoplay playsinline muted></video>
-            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:30px; height:30px; border:3px solid #FFD60A; box-shadow:0 0 0 100px rgba(0,0,0,0.85);"></div>
+            
+            <div style="position:absolute; top:50%; left:50%; width:100%; height:1px; background:rgba(0,255,0,0.5);"></div>
+            <div style="position:absolute; top:50%; left:50%; width:1px; height:100%; background:rgba(0,255,0,0.5);"></div>
+            
+            <div id="pt0" class="debug-pt" style="top:25%; left:25%; border: 2px solid yellow;"></div>
+            <div id="pt1" class="debug-pt" style="top:25%; left:75%;"></div>
+            <div id="pt2" class="debug-pt" style="top:75%; left:25%;"></div>
+            <div id="pt3" class="debug-pt" style="top:75%; left:75%;"></div>
         </div>
 
-        <canvas id="graph" width="320" height="50"></canvas>
-        
-        <div class="status-row">
-            <span id="state-lbl">State: IDLE</span>
-            <span id="bit-debug"></span>
+        <div class="stat-row">
+            <span id="rx-state">State: IDLE</span>
+            <span id="clk-rate">FPS: 0</span>
         </div>
-
-        <div id="rx-msg"></div>
+        <div id="rx-log">Waiting for signal...</div>
     </div>
 
     <script>
         // --- CONFIG ---
-        const BIT_TIME = 500; // 500ms (Half-second per bit) - SLOW BUT SAFE
-        const PILOT_TIME = 2000; // 2 seconds of light to sync
-
-        function setTab(t) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            document.getElementById(t+'-screen').classList.add('active');
+        const FRAME_MS = 100; // 100ms per frame = 10 updates/sec * 3 bits = 30bps
+        
+        function setView(v) {
+            document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+            document.getElementById(v+'-view').classList.add('active');
             event.target.classList.add('active');
         }
 
         // --- TRANSMITTER ---
-        let track = null;
-        let useScreen = false;
-        const torchUI = document.getElementById('torch-icon');
-        const txStat = document.getElementById('tx-status');
-        const screenFlash = document.getElementById('screen-flash');
-
-        async function initTx() {
-            try {
-                // Try to get back camera with Torch
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                track = stream.getVideoTracks()[0];
-                const caps = track.getCapabilities();
-                
-                if (!caps.torch) {
-                    useScreen = true;
-                    txStat.innerText = "Torch not found. Using SCREEN FLASH.";
-                    txStat.style.color = "#FFD60A";
-                } else {
-                    txStat.innerText = "Torch System Active";
-                    txStat.style.color = "#0f0";
-                }
-
-                document.getElementById('init-btn').style.display = 'none';
-                document.getElementById('send-btn').style.display = 'block';
-            } catch(e) { 
-                alert("Camera permission denied."); 
-            }
-        }
+        const quads = [
+            document.getElementById('q0'),
+            document.getElementById('q1'),
+            document.getElementById('q2'),
+            document.getElementById('q3')
+        ];
 
         async function transmit() {
-            const text = document.getElementById('msg-in').value.toUpperCase();
-            if(!text) return;
-            
-            const btn = document.getElementById('send-btn');
-            btn.disabled = true;
-
-            // Convert to Binary
+            const text = document.getElementById('tx-input').value;
+            // Convert to binary string
             let bits = "";
-            for (let i = 0; i < text.length; i++) {
-                bits += text.charCodeAt(i).toString(2).padStart(8, '0');
+            for(let i=0; i<text.length; i++) {
+                bits += text.charCodeAt(i).toString(2).padStart(8, "0");
+            }
+            
+            // Pad to multiple of 3
+            while(bits.length % 3 !== 0) bits += "0";
+
+            // 1. SYNC (Flash Clock 10 times)
+            for(let i=0; i<10; i++) {
+                setGrid(i%2===0, 0, 0, 0); // Toggle Clock, Data=0
+                await wait(FRAME_MS);
             }
 
-            // 1. PILOT TONE (Solid Light for 2s)
-            // This locks the auto-exposure and tells receiver to get ready
-            btn.innerText = "SYNCING (PILOT)...";
-            await setLight(true);
-            await wait(PILOT_TIME);
-
-            // 2. THE DROP (Sync Point)
-            // Turns off. The receiver starts its timer HERE.
-            await setLight(false);
-            await wait(BIT_TIME); // Pause for 1 bit width
-
-            // 3. DATA
-            btn.innerText = "TRANSMITTING...";
-            for(let i=0; i<bits.length; i++) {
-                const bit = bits[i] === '1';
-                await setLight(bit);
-                await wait(BIT_TIME);
+            // 2. DATA
+            // We iterate through bits in chunks of 3
+            let clockState = false;
+            
+            for(let i=0; i<bits.length; i+=3) {
+                clockState = !clockState; // Toggle Clock every frame
+                
+                const b0 = bits[i] === '1';
+                const b1 = bits[i+1] === '1';
+                const b2 = bits[i+2] === '1';
+                
+                setGrid(clockState, b0, b1, b2);
+                await wait(FRAME_MS);
             }
 
-            // 4. DONE
-            await setLight(false);
-            btn.innerText = "SEND SIGNAL";
-            btn.disabled = false;
+            // End
+            setGrid(false,0,0,0);
         }
 
-        async function setLight(on) {
-            torchUI.className = on ? 'on' : '';
-            if(useScreen) {
-                screenFlash.style.display = on ? 'block' : 'none';
-            } else if(track) {
-                try { await track.applyConstraints({ advanced: [{ torch: on }] }); } catch(e){}
-            }
+        function setGrid(clk, d0, d1, d2) {
+            quads[0].className = clk ? 'quad on' : 'quad';
+            quads[1].className = d0 ? 'quad on' : 'quad';
+            quads[2].className = d1 ? 'quad on' : 'quad';
+            quads[3].className = d2 ? 'quad on' : 'quad';
         }
         const wait = ms => new Promise(r => setTimeout(r, ms));
 
@@ -208,116 +185,127 @@
         // --- RECEIVER ---
         let rxRunning = false;
         const vid = document.getElementById('video');
-        const gCtx = document.getElementById('graph').getContext('2d');
-        const cvs = document.createElement('canvas'); const ctx = cvs.getContext('2d');
+        const cvs = document.createElement('canvas'); 
+        const ctx = cvs.getContext('2d', { willReadFrequently: true });
         
-        let history = [];
-        let state = "SEARCH";
-        let nextSample = 0;
-        let bitBuf = "";
-        let msg = "";
+        const ptDivs = [
+            document.getElementById('pt0'),
+            document.getElementById('pt1'),
+            document.getElementById('pt2'),
+            document.getElementById('pt3')
+        ];
+        const log = document.getElementById('rx-log');
+        const stateLbl = document.getElementById('rx-state');
 
-        async function initRx() {
+        // Logic
+        let lastClockVal = 0;
+        let bitBuf = "";
+        let state = "SEARCH";
+        let frameCount = 0;
+
+        async function startRx() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
                 vid.srcObject = stream;
+                vid.onloadedmetadata = () => vid.play();
                 document.getElementById('cam-btn').style.display = 'none';
                 rxRunning = true;
                 loop();
-            } catch(e) { alert("Webcam Error"); }
+            } catch(e) { alert("Cam Error: "+e); }
         }
 
         function loop() {
             if(!rxRunning) return;
 
-            // 1. Sample Luma
-            cvs.width=20; cvs.height=20;
-            ctx.drawImage(vid, vid.videoWidth/2-10, vid.videoHeight/2-10, 20, 20, 0, 0, 20, 20);
-            const d = ctx.getImageData(0,0,20,20).data;
-            let sum = 0;
-            for(let i=0; i<d.length; i+=4) sum += (d[i]+d[i+1]+d[i+2])/3;
-            const luma = sum / (d.length/4);
+            // 1. Snapshot video to canvas (small size for speed)
+            cvs.width = 100; cvs.height = 100;
+            ctx.drawImage(vid, 0, 0, 100, 100);
+            const frame = ctx.getImageData(0,0,100,100).data;
 
-            // 2. Threshold
-            history.push(luma);
-            if(history.length > 100) history.shift();
-            const min = Math.min(...history);
-            const max = Math.max(...history);
-            const thresh = (min + max) / 2;
-            const isHigh = luma > thresh;
+            // 2. Read 4 Quadrants
+            // TL (25, 25), TR (75, 25), BL (25, 75), BR (75, 75)
+            // We average a 5x5 pixel area around these points
+            const vals = [
+                getLuma(frame, 25, 25), // Clock
+                getLuma(frame, 75, 25), // D0
+                getLuma(frame, 25, 75), // D1
+                getLuma(frame, 75, 75)  // D2
+            ];
 
-            const now = Date.now();
-            const stateLbl = document.getElementById('state-lbl');
+            // 3. Update Visuals
+            vals.forEach((v, i) => {
+                ptDivs[i].style.background = v > 128 ? '#0F0' : '#F00';
+            });
 
-            // 3. State Machine
-            if(state === "SEARCH") {
-                stateLbl.innerText = "State: WAITING FOR PILOT";
-                stateLbl.style.color = "#666";
-                
-                // Look for sustained HIGH signal (Pilot)
-                // If light is bright and range is good
-                if(luma > 200 && (max-min) > 50) {
-                    state = "LOCKED";
-                }
-            }
-            else if(state === "LOCKED") {
-                stateLbl.innerText = "State: PILOT DETECTED";
-                stateLbl.style.color = "#FFD60A";
-                
-                // Wait for the DROP (High -> Low)
-                if(!isHigh) {
+            // 4. Logic: EDGE DETECTION on Clock (Index 0)
+            // We only read data when the Clock changes state (Low->High or High->Low)
+            // This is "Double Data Rate" (DDR) logic logic.
+            
+            // Thresholding (Simple > 128)
+            // In a real app we'd use dynamic threshold, but for grid alignment 128 is usually fine 
+            // if screen is bright and room is dim.
+            const bin = vals.map(v => v > 128 ? 1 : 0);
+            
+            if (state === "SEARCH") {
+                // Wait for Clock to toggle rapidly? 
+                // Or just start reading.
+                // Let's use the toggle.
+                if (bin[0] !== lastClockVal) {
                     state = "READ";
-                    // The signal just dropped.
-                    // The first data bit starts in BIT_TIME ms.
-                    // We want to sample in the MIDDLE of that bit.
-                    // So we wait: 1 Full Bit + 0.5 Bit
-                    nextSample = now + (BIT_TIME * 1.5);
-                    bitBuf = "";
-                    msg = "";
-                    document.getElementById('rx-msg').innerText = "";
-                    stateLbl.innerText = "State: RECEIVING";
-                    stateLbl.style.color = "#0f0";
+                    log.innerText = "";
+                    stateLbl.innerText = "State: SYNCED";
                 }
             }
-            else if(state === "READ") {
-                if(now >= nextSample) {
-                    nextSample += BIT_TIME;
-                    const bit = isHigh ? "1" : "0";
-                    bitBuf += bit;
-                    
-                    document.getElementById('bit-debug').innerText = bitBuf.slice(-8);
+            else if (state === "READ") {
+                // Check if Clock flipped
+                if (bin[0] !== lastClockVal) {
+                    lastClockVal = bin[0];
+                    frameCount++;
+                    document.getElementById('clk-rate').innerText = "Frames: " + frameCount;
 
-                    if(bitBuf.length === 8) {
-                        const val = parseInt(bitBuf, 2);
-                        // Only print valid ASCII (A-Z, 0-9, space)
+                    // READ DATA BITS
+                    const d0 = bin[1];
+                    const d1 = bin[2];
+                    const d2 = bin[3];
+                    
+                    bitBuf += d0.toString() + d1.toString() + d2.toString();
+
+                    // Decode Bytes
+                    while(bitBuf.length >= 8) {
+                        const byte = bitBuf.substring(0, 8);
+                        bitBuf = bitBuf.substring(8); // Shift
+                        
+                        const val = parseInt(byte, 2);
                         if(val >= 32 && val <= 126) {
-                            msg += String.fromCharCode(val);
-                            document.getElementById('rx-msg').innerText = msg;
+                             log.innerText += String.fromCharCode(val);
+                             // Auto scroll
+                             log.scrollTop = log.scrollHeight;
                         }
-                        bitBuf = "";
                     }
                 }
-                // Timeout (3s of silence)
-                if(now > nextSample + 3000) state = "SEARCH";
+                
+                // Timeout (Reset if no clock change for 2 seconds)
+                // (Omitted for simplicity, manual reset by refresh)
             }
-
-            // Draw Graph
-            gCtx.fillStyle="#111"; gCtx.fillRect(0,0,320,50);
-            
-            // Draw Signal Bar
-            const h = 50;
-            const y = h - (luma/255)*h;
-            const tY = h - (thresh/255)*h;
-            
-            // Threshold Line (Blue)
-            gCtx.fillStyle="blue"; gCtx.fillRect(0, tY, 320, 1);
-            
-            // Signal Dot
-            gCtx.fillStyle = isHigh ? "#FFD60A" : "#333";
-            gCtx.fillRect(150, y-2, 20, 4);
 
             requestAnimationFrame(loop);
         }
+
+        function getLuma(data, x, y) {
+            // Read 5x5 patch center
+            let sum = 0;
+            let count = 0;
+            for(let dy=-2; dy<=2; dy++) {
+                for(let dx=-2; dx<=2; dx++) {
+                    const idx = ((y+dy)*100 + (x+dx)) * 4;
+                    // Luma = (R+G+B)/3
+                    sum += (data[idx] + data[idx+1] + data[idx+2]) / 3;
+                    count++;
+                }
+            }
+            return sum / count;
+        }
+
     </script>
 </body>
 </html>
