@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Prism v2: High Contrast</title>
+    <title>Prism: Image Upload</title>
     <style>
-        :root { --bg: #000; --text: #fff; --accent: #fff; }
+        :root { --bg: #000; --text: #eee; --panel: #111; --accent: #fff; }
         body {
             background-color: var(--bg); color: var(--text);
             font-family: 'Courier New', monospace; margin: 0;
@@ -14,103 +14,119 @@
         }
 
         /* NAV */
-        .nav { display: flex; height: 60px; border-bottom: 1px solid #333; }
+        .nav { display: flex; height: 50px; border-bottom: 1px solid #333; }
         .nav-item {
             flex: 1; display: flex; align-items: center; justify-content: center;
             background: #111; cursor: pointer; font-weight: bold; border-right: 1px solid #333;
         }
-        .nav-item.active { background: #333; color: #fff; border-bottom: 4px solid #fff; }
+        .nav-item.active { background: #222; color: #fff; border-bottom: 3px solid #fff; }
 
-        .view { display: none; flex: 1; flex-direction: column; align-items: center; padding: 20px; }
+        .view { display: none; flex: 1; flex-direction: column; align-items: center; padding: 15px; }
         .view.active { display: flex; }
 
         /* TRANSMITTER */
         #prism-box {
-            width: 300px; height: 300px; margin-bottom: 20px;
+            width: 300px; height: 300px; margin-bottom: 15px;
             background: #000; border: 4px solid #fff;
             display: flex; align-items: center; justify-content: center;
-            font-size: 3rem; font-weight: bold; color: #fff;
-            text-shadow: 0 0 10px #000;
+            font-size: 2rem; font-weight: bold; color: #fff;
+            text-shadow: 0 0 10px #000; position: relative;
+        }
+
+        /* The Image Preview Overlay */
+        #preview-img {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            image-rendering: pixelated; /* Shows crisp pixels */
+            display: none; z-index: 10; opacity: 0.9;
         }
 
         .controls { width: 100%; max-width: 300px; display: flex; flex-direction: column; gap: 10px; }
-        input[type="text"] { 
-            padding: 15px; background: #222; border: 1px solid #444; color: #fff; 
-            text-align: center; font-family: monospace; font-size: 1.5rem;
-        }
+        
         button { 
             padding: 15px; border: none; border-radius: 4px; font-weight: bold; 
             cursor: pointer; background: #fff; color: #000; font-size: 1rem;
         }
+        button.secondary { background: #333; color: #fff; }
+        input[type="file"] { display: none; }
 
         /* RECEIVER */
         #cam-container {
-            position: relative; width: 300px; height: 300px;
+            position: relative; width: 300px; height: 200px;
             background: #000; border: 2px solid #555; overflow: hidden; margin-bottom: 10px;
         }
         video { width: 100%; height: 100%; object-fit: cover; }
         
-        #rx-log { 
-            width: 300px; height: 60px; background: #111; border: 1px solid #333; 
-            padding: 10px; color: #fff; font-size: 1.5rem; overflow-wrap: break-word;
+        #rx-canvas {
+            width: 300px; height: 300px; background: #111; border: 1px solid #333;
+            image-rendering: pixelated; 
         }
         
         .stat-row { 
             width: 300px; display: flex; justify-content: space-between; 
-            font-size: 0.9rem; color: #aaa; margin-bottom: 10px;
-            font-weight: bold;
+            font-size: 0.8rem; color: #aaa; margin-bottom: 5px; font-weight: bold;
         }
-
-        #detected-color { color: #fff; text-transform: uppercase; }
+        
+        #color-detect { color: #fff; }
 
     </style>
 </head>
 <body>
 
     <div class="nav">
-        <div class="nav-item active" onclick="setView('tx')">PRISM (TX)</div>
-        <div class="nav-item" onclick="setView('rx')">CAMERA (RX)</div>
+        <div class="nav-item active" onclick="setView('tx')">SENDER</div>
+        <div class="nav-item" onclick="setView('rx')">RECEIVER</div>
     </div>
 
     <div id="tx-view" class="view active">
-        <div id="prism-box">READY</div>
+        <div id="prism-box">
+            READY
+            <canvas id="preview-img" width="20" height="20"></canvas>
+        </div>
 
         <div class="controls">
-            <input type="text" id="tx-input" value="RGB-DATA" placeholder="Message">
-            <button id="tx-btn" onclick="transmit()">SEND (4-Color)</button>
+            <button class="secondary" onclick="document.getElementById('file-input').click()">📁 UPLOAD IMAGE</button>
+            <input type="file" id="file-input" accept="image/*" onchange="handleFile(this)">
+            
+            <button id="tx-btn" onclick="transmit()">TRANSMIT (60s)</button>
         </div>
-        <div style="font-size:0.75rem; color:#888; margin-top:15px; text-align:center;">
-            Red(00) Green(01)<br>Blue(10) Magenta(11)
+        
+        <div style="font-size:0.75rem; color:#666; margin-top:15px; text-align:center;">
+            Auto-converts to 20x20 Grayscale.<br>
+            Sending via 4-Color Flash.
         </div>
     </div>
 
     <div id="rx-view" class="view">
-        <button id="cam-btn" onclick="startRx()" style="width:300px; margin-bottom:15px;">START CAMERA</button>
+        <button id="cam-btn" onclick="startRx()" style="width:300px; margin-bottom:10px;">START CAMERA</button>
         
         <div id="cam-container">
             <video id="video" autoplay playsinline muted></video>
-            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:40px; height:40px; border:4px solid #fff; border-radius:50%; box-shadow:0 0 0 100px rgba(0,0,0,0.85);"></div>
+            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:30px; height:30px; border:3px solid #fff; border-radius:50%; box-shadow:0 0 0 100px rgba(0,0,0,0.85);"></div>
         </div>
         
         <div class="stat-row">
             <span id="state-lbl">IDLE</span>
-            <span>SEES: <span id="detected-color">---</span></span>
+            <span id="color-detect">---</span>
         </div>
 
-        <div id="rx-log"></div>
+        <canvas id="rx-canvas" width="20" height="20"></canvas>
     </div>
 
     <script>
         // --- CONFIG ---
-        const FRAME_MS = 350; // Slower for better color accuracy
+        const RES = 20;       // 20x20 Grid
+        const FRAME_MS = 150; // Speed per pixel
         const PILOT_MS = 2000;
 
-        // Base-4 Color Map (High Contrast)
-        // 00: Red (0 deg)
-        // 01: Green (120 deg)
-        // 10: Blue (240 deg)
-        // 11: Magenta (300 deg)
-        const HEX_CODES = ['#FF0000', '#00FF00', '#0000FF', '#FF00FF'];
+        // The 4 Colors Map
+        // 0: Black -> Red Flash
+        // 1: Dark Gray -> Green Flash
+        // 2: Light Gray -> Blue Flash
+        // 3: White -> Magenta Flash
+        const PALETTE = ['#FF0000', '#00FF00', '#0000FF', '#FF00FF'];
+        
+        // This holds the data to send (0, 1, 2, or 3)
+        let txData = new Array(RES*RES).fill(0);
 
         function setView(v) {
             document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
@@ -119,49 +135,92 @@
             event.target.classList.add('active');
         }
 
-        // --- TRANSMITTER ---
+        // --- IMAGE PROCESSOR ---
         const box = document.getElementById('prism-box');
-        
+        const previewCvs = document.getElementById('preview-img');
+        const pCtx = previewCvs.getContext('2d');
+
+        function handleFile(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const img = new Image();
+            img.onload = () => {
+                // 1. Draw image to 20x20 canvas (Forces Resize)
+                // We clear it to black first
+                pCtx.fillStyle = "black";
+                pCtx.fillRect(0,0,RES,RES);
+                pCtx.drawImage(img, 0, 0, RES, RES);
+                
+                // 2. Get Pixel Data
+                const imageData = pCtx.getImageData(0, 0, RES, RES);
+                const d = imageData.data;
+
+                // 3. Process every pixel
+                for (let i = 0; i < d.length; i += 4) {
+                    const r = d[i];
+                    const g = d[i+1];
+                    const b = d[i+2];
+
+                    // Calculate Brightness (Luma)
+                    const luma = 0.299*r + 0.587*g + 0.114*b;
+                    
+                    // Quantize to 4 levels (0-3)
+                    let val = 0;
+                    if(luma < 64) val = 0;       // Black
+                    else if(luma < 128) val = 1; // Dark Gray
+                    else if(luma < 192) val = 2; // Light Gray
+                    else val = 3;                // White
+
+                    // Store for transmission
+                    txData[i/4] = val;
+
+                    // Update Preview to show the user what will be sent
+                    // We map back to grayscale for the preview
+                    const gray = val * 85; 
+                    d[i] = gray;
+                    d[i+1] = gray;
+                    d[i+2] = gray;
+                }
+
+                // 4. Update UI
+                pCtx.putImageData(imageData, 0, 0);
+                previewCvs.style.display = 'block';
+                box.innerText = "";
+            };
+            img.src = URL.createObjectURL(file);
+        }
+
+        // --- TRANSMITTER LOOP ---
         async function transmit() {
-            const text = document.getElementById('tx-input').value;
             const btn = document.getElementById('tx-btn');
             btn.disabled = true;
-
-            // Convert to binary
-            let bits = "";
-            for(let i=0; i<text.length; i++) {
-                bits += text.charCodeAt(i).toString(2).padStart(8, "0");
-            }
-            // Pad to multiple of 2 (Base-4)
-            if(bits.length % 2 !== 0) bits += "0";
-
-            // 1. PILOT (White)
+            previewCvs.style.display = 'none'; // Hide preview so we can flash colors
+            
+            // 1. PILOT
             box.style.background = "#FFF";
             box.innerText = "PILOT";
             box.style.color = "#000";
             await wait(PILOT_MS);
 
-            // 2. SYNC (Black Drop)
+            // 2. SYNC
             box.style.background = "#000";
             box.innerText = "";
             await wait(FRAME_MS * 2);
 
-            // 3. DATA (Quaternary)
-            btn.innerText = "SENDING...";
-            box.style.color = "#FFF"; // Text color for visibility
-            
-            for(let i=0; i<bits.length; i+=2) {
-                const chunk = bits.substring(i, i+2);
-                const val = parseInt(chunk, 2);
-                
-                box.style.background = HEX_CODES[val];
-                // box.innerText = chunk; // Debug text
+            // 3. STREAM
+            btn.innerText = "STREAMING...";
+            for(let i=0; i<txData.length; i++) {
+                const val = txData[i];
+                box.style.background = PALETTE[val];
                 await wait(FRAME_MS);
             }
 
+            // Done
             box.style.background = "#000";
-            btn.innerText = "SEND (4-Color)";
+            btn.innerText = "TRANSMIT (60s)";
             btn.disabled = false;
+            previewCvs.style.display = 'block'; // Show preview again
         }
         const wait = ms => new Promise(r => setTimeout(r, ms));
 
@@ -172,13 +231,13 @@
         const cvs = document.createElement('canvas'); 
         const ctx = cvs.getContext('2d', { willReadFrequently: true });
         
-        const log = document.getElementById('rx-log');
+        const rxCtx = document.getElementById('rx-canvas').getContext('2d');
         const stateLbl = document.getElementById('state-lbl');
-        const colorLbl = document.getElementById('detected-color');
+        const colorLbl = document.getElementById('color-detect');
 
         let state = "SEARCH";
         let nextSample = 0;
-        let bitBuffer = "";
+        let pixelIndex = 0;
 
         async function startRx() {
             try {
@@ -187,69 +246,63 @@
                 vid.onloadedmetadata = () => vid.play();
                 document.getElementById('cam-btn').style.display = 'none';
                 rxRunning = true;
+                
+                // Reset Receiver Canvas
+                rxCtx.fillStyle = "#222";
+                rxCtx.fillRect(0,0,RES,RES);
+                
                 loop();
-            } catch(e) { alert("Cam Error: "+e); }
+            } catch(e) { alert(e); }
         }
 
         function loop() {
             if(!rxRunning) return;
 
-            // 1. Read Center Pixel
+            // 1. Read Center of Video
             cvs.width=30; cvs.height=30;
             ctx.drawImage(vid, vid.videoWidth/2-15, vid.videoHeight/2-15, 30, 30, 0, 0, 30, 30);
             const d = ctx.getImageData(0,0,30,30).data;
             
-            // Average RGB
+            // Average Color
             let r=0, g=0, b=0;
             for(let i=0; i<d.length; i+=4) { r+=d[i]; g+=d[i+1]; b+=d[i+2]; }
-            r /= 900; g /= 900; b /= 900;
+            r/=900; g/=900; b/=900;
 
-            const hsl = rgbToHsl(r, g, b); 
+            const hsl = rgbToHsl(r,g,b);
             const h = hsl[0];
-            const s = hsl[1];
             const l = hsl[2];
 
             // 2. Classify Color
             let detected = "DARK";
             let val = -1;
 
-            if(l > 0.8 && s < 0.2) {
-                detected = "WHITE (PILOT)";
-            } else if (l < 0.25) {
-                detected = "DARK";
-            } else {
-                // Determine Hue (Robust Zones)
-                // Red: 330-360 OR 0-30
-                // Green: 80-160
-                // Blue: 200-260
-                // Magenta: 270-330
-                
-                if(h >= 340 || h <= 30) { detected = "RED"; val = 0; colorLbl.style.color = "#FF4444"; }
-                else if (h >= 80 && h <= 160) { detected = "GREEN"; val = 1; colorLbl.style.color = "#44FF44"; }
-                else if (h >= 200 && h <= 260) { detected = "BLUE"; val = 2; colorLbl.style.color = "#4444FF"; }
-                else if (h >= 270 && h <= 330) { detected = "MAGENTA"; val = 3; colorLbl.style.color = "#FF44FF"; }
-                else { detected = "UNCERTAIN"; colorLbl.style.color = "#888"; }
+            if(l > 0.8) { detected = "WHITE (PILOT)"; }
+            else if(l < 0.25) { detected = "DARK"; }
+            else {
+                if(h >= 340 || h <= 30) { detected="RED (BLK)"; val=0; colorLbl.style.color="#F44"; }
+                else if(h >= 80 && h <= 160) { detected="GRN (DK)"; val=1; colorLbl.style.color="#4F4"; }
+                else if(h >= 200 && h <= 260) { detected="BLU (LT)"; val=2; colorLbl.style.color="#44F"; }
+                else if(h >= 280 && h <= 340) { detected="MAG (WHT)"; val=3; colorLbl.style.color="#F4F"; }
+                else { detected="UNCERTAIN"; colorLbl.style.color="#888"; }
             }
-            
             colorLbl.innerText = detected;
 
-            // 3. State Machine
+            // 3. Logic
             const now = Date.now();
 
             if(state === "SEARCH") {
-                stateLbl.innerText = "WAIT FOR WHITE";
-                stateLbl.style.color = "#888";
-                if(detected === "WHITE (PILOT)") state = "PILOT";
+                stateLbl.innerText = "WAIT FOR PILOT";
+                if(detected.includes("PILOT")) state = "PILOT";
             }
             else if(state === "PILOT") {
                 stateLbl.innerText = "LOCKED";
-                stateLbl.style.color = "#FFF";
-                // Wait for Drop to DARK
+                stateLbl.style.color = "#FFD60A";
+                // Wait for Drop
                 if(detected === "DARK") {
                     state = "READ";
                     nextSample = now + (FRAME_MS * 1.5);
-                    bitBuffer = "";
-                    log.innerText = "";
+                    pixelIndex = 0;
+                    rxCtx.fillStyle = "#000"; rxCtx.fillRect(0,0,RES,RES); // Clear
                     stateLbl.innerText = "RECEIVING";
                     stateLbl.style.color = "#0f0";
                 }
@@ -258,37 +311,33 @@
                 if(now >= nextSample) {
                     nextSample += FRAME_MS;
                     
-                    if(val !== -1) {
-                        const bits = val.toString(2).padStart(2, "0");
-                        bitBuffer += bits;
-
-                        // Decode Bytes
-                        while(bitBuffer.length >= 8) {
-                            const byte = bitBuffer.substring(0, 8);
-                            bitBuffer = bitBuffer.substring(8);
-                            const charCode = parseInt(byte, 2);
-                            if(charCode >= 32 && charCode <= 126) {
-                                log.innerText += String.fromCharCode(charCode);
-                            }
-                        }
+                    if(pixelIndex < RES*RES) {
+                        // Default to black (0) if uncertain
+                        const v = val === -1 ? 0 : val;
+                        
+                        // Paint pixel on receiver
+                        const grayLevels = ["#000", "#555", "#AAA", "#FFF"];
+                        rxCtx.fillStyle = grayLevels[v];
+                        const x = pixelIndex % RES;
+                        const y = Math.floor(pixelIndex / RES);
+                        rxCtx.fillRect(x, y, 1, 1);
+                        
+                        pixelIndex++;
                     } else {
-                        // If we read "Uncertain" or "Dark" in the middle of a stream,
-                        // we likely assume it's the previous color or just hold.
-                        // For simplicity, we ignore invalid frames (risky but keeps sync better than guessing)
+                        state = "SEARCH";
+                        stateLbl.innerText = "COMPLETE";
+                        stateLbl.style.color = "#FFF";
                     }
                 }
-                if(now > nextSample + 3000) state = "SEARCH";
             }
 
             requestAnimationFrame(loop);
         }
 
-        // RGB to HSL helper
         function rgbToHsl(r, g, b) {
             r /= 255, g /= 255, b /= 255;
             const max = Math.max(r, g, b), min = Math.min(r, g, b);
             let h, s, l = (max + min) / 2;
-
             if (max === min) { h = s = 0; } 
             else {
                 const d = max - min;
@@ -302,7 +351,6 @@
             }
             return [h * 360, s, l];
         }
-
     </script>
 </body>
 </html>
