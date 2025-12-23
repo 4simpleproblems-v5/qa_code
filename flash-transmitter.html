@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Project Seismic</title>
+    <title>Project Helios: Optical Link</title>
     <style>
-        :root { --bg: #0d1117; --panel: #161b22; --accent: #ff7b72; --text: #c9d1d9; }
+        :root { --bg: #000; --panel: #111; --accent: #FFD60A; --text: #eee; }
         body {
             background-color: var(--bg); color: var(--text);
             font-family: 'Courier New', monospace; margin: 0;
@@ -14,101 +14,112 @@
         }
 
         /* NAVIGATION */
-        .nav { display: flex; height: 60px; border-bottom: 1px solid #30363d; }
+        .nav { display: flex; height: 60px; border-bottom: 1px solid #333; }
         .nav-item {
             flex: 1; display: flex; align-items: center; justify-content: center;
-            background: #21262d; cursor: pointer; font-weight: bold; font-size: 1.1rem;
+            background: #1a1a1a; cursor: pointer; font-weight: bold; font-size: 1.1rem;
+            color: #666;
         }
-        .nav-item.active { background: var(--panel); color: var(--accent); border-bottom: 4px solid var(--accent); }
+        .nav-item.active { background: var(--accent); color: #000; }
 
         .screen { display: none; flex: 1; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .screen.active { display: flex; }
 
-        /* TRANSMITTER UI */
-        #vib-btn {
-            width: 200px; height: 200px; border-radius: 50%;
-            background: #21262d; border: 4px solid #30363d;
-            color: #8b949e; font-size: 1.2rem; font-weight: bold;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; transition: 0.1s;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        /* BUTTONS & INPUTS */
+        button {
+            width: 100%; max-width: 300px;
+            padding: 15px 30px; font-size: 1rem; border: none; border-radius: 8px;
+            font-weight: bold; cursor: pointer; background: var(--accent); color: #000;
+            margin-top: 10px;
         }
-        #vib-btn:active, #vib-btn.active {
-            background: var(--accent); color: #000;
-            transform: scale(0.95); box-shadow: 0 0 50px var(--accent);
-        }
-
-        input {
-            width: 80%; padding: 15px; margin-top: 30px;
-            background: #0d1117; border: 1px solid #30363d; color: #fff;
-            border-radius: 8px; font-family: monospace; text-align: center;
-        }
-
-        /* RECEIVER UI */
-        #seismo-box {
-            position: relative; width: 100%; max-width: 400px; height: 200px;
-            background: #000; border: 2px solid #30363d; margin-bottom: 20px;
-            overflow: hidden;
-        }
-        #seismograph { width: 100%; height: 100%; }
+        button.secondary { background: #333; color: #fff; }
         
-        .status-row { display: flex; gap: 20px; font-size: 0.8rem; color: #8b949e; margin-bottom: 10px; }
+        input { 
+            padding: 15px; background: #222; border: 1px solid #444; 
+            color: #fff; border-radius: 8px; font-family: monospace; width: 80%;
+            margin-bottom: 20px; text-align: center; text-transform: uppercase;
+            font-size: 1.2rem;
+        }
+
+        /* TRANSMITTER (PHONE) */
+        #torch-icon {
+            width: 120px; height: 120px; border-radius: 50%;
+            background: #222; border: 4px solid #444;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 20px; font-size: 3rem;
+            transition: 0.1s;
+        }
+        #torch-icon.on { background: #FFF; box-shadow: 0 0 60px #FFF; border-color: #FFF; color: #000; }
+        
+        #flash-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #FFF; display: none; z-index: 999;
+        }
+
+        /* RECEIVER (LAPTOP) */
+        #cam-box {
+            position: relative; width: 320px; height: 240px;
+            background: #111; border: 2px solid #555; overflow: hidden;
+            margin-bottom: 15px; border-radius: 8px;
+        }
+        video { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.2); }
+        
+        #graph { width: 320px; height: 60px; background: #111; border: 1px solid #333; }
         
         #rx-msg { 
-            font-size: 2rem; color: var(--accent); min-height: 3rem; 
-            text-shadow: 0 0 10px rgba(255,123,114,0.5);
+            font-size: 2rem; color: var(--accent); margin-top: 15px; 
+            min-height: 2.5rem; text-shadow: 0 0 10px var(--accent);
+            letter-spacing: 5px;
         }
-
-        button.action {
-            padding: 15px 40px; background: var(--accent); color: #000;
-            border: none; border-radius: 8px; font-weight: bold; font-size: 1rem;
-        }
+        
+        .status { font-size: 0.8rem; color: #666; margin-top: 5px; }
 
     </style>
 </head>
 <body>
 
+    <div id="flash-screen"></div>
+
     <div class="nav">
-        <div class="nav-item active" onclick="setTab('tx')">LAPTOP (TX)</div>
-        <div class="nav-item" onclick="setTab('rx')">PHONE (RX)</div>
+        <div class="nav-item active" onclick="setTab('tx')">PHONE (SENDER)</div>
+        <div class="nav-item" onclick="setTab('rx')">LAPTOP (RECEIVER)</div>
     </div>
 
     <div id="tx-screen" class="screen active">
-        <div id="vib-btn" onmousedown="manualPulse(true)" onmouseup="manualPulse(false)">
-            HOLD TO<br>RUMBLE
-        </div>
+        <div id="torch-icon">💡</div>
         
-        <input type="text" id="msg-input" placeholder="SECRET MSG" maxlength="8">
-        <button class="action" onclick="transmitData()" style="margin-top:10px; width:80%;">SEND DATA</button>
+        <input type="text" id="msg-in" placeholder="HELLO" maxlength="8">
         
-        <p style="font-size:0.8rem; color:#666; margin-top:30px; max-width:300px; text-align:center;">
-            Set Volume to 100%.<br>Place iPhone on laptop palm rest.
-        </p>
+        <button id="enable-btn" onclick="initTx()">ENABLE TORCH</button>
+        <button id="send-btn" onclick="transmit()" style="display:none;">FIRE MESSAGE</button>
+        
+        <div class="status" id="tx-status">Requires Camera Permission</div>
     </div>
 
     <div id="rx-screen" class="screen">
-        <button id="sensor-btn" class="action" onclick="startSensor()">ENABLE SENSORS</button>
+        <button id="cam-btn" onclick="initRx()">START WEBCAM</button>
         
-        <div class="status-row">
-            <span id="force-val">FORCE: 0.00</span>
-            <span id="thresh-val">THR: 0.00</span>
+        <div id="cam-box">
+            <video id="video" autoplay playsinline muted></video>
+            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:20px; height:20px; border:2px solid #FFD60A; box-shadow:0 0 0 100px rgba(0,0,0,0.8);"></div>
         </div>
 
-        <div id="seismo-box">
-            <canvas id="seismograph"></canvas>
-            <div id="thresh-line" style="position:absolute; bottom:20%; width:100%; height:1px; background:#00f; opacity:0.5;"></div>
+        <canvas id="graph" width="320" height="60"></canvas>
+        
+        <div class="status" style="display:flex; justify-content:space-between; width:320px;">
+            <span id="state-lbl">State: IDLE</span>
+            <span id="luma-lbl">Light: 0</span>
         </div>
 
-        <div id="rx-msg">WAITING...</div>
-        <div style="font-size:0.7rem; color:#444;">Keep phone still flat on surface</div>
+        <div id="rx-msg"></div>
     </div>
 
     <script>
         // --- CONFIG ---
-        const BIT_TIME = 400; // 400ms (Mechanical vibration takes time to stop)
-        const FREQ = 55;      // 55Hz (Resonant freq for most plastic chassis)
-        
-        // --- TABS ---
+        // 250ms is the sweet spot. Fast enough to be cool, slow enough for 
+        // the iPhone torch API (which has a slight lag) to keep up.
+        const BIT_TIME = 250; 
+
         function setTab(t) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -116,202 +127,201 @@
             event.target.classList.add('active');
         }
 
-        // --- TRANSMITTER (AUDIO) ---
-        let audioCtx;
-        let osc;
+        // --- TRANSMITTER (PHONE) ---
+        let track = null;
+        let useScreenFallback = false;
+        const torchUI = document.getElementById('torch-icon');
+        const flashScreen = document.getElementById('flash-screen');
+        const txStatus = document.getElementById('tx-status');
 
-        function initAudio() {
-            if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if(audioCtx.state === 'suspended') audioCtx.resume();
-        }
+        async function initTx() {
+            try {
+                // Request Back Camera
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }
+                });
+                track = stream.getVideoTracks()[0];
+                
+                // Detect Torch Support
+                const caps = track.getCapabilities();
+                if (!caps.torch) {
+                    useScreenFallback = true;
+                    txStatus.innerText = "Torch unavailable. Using SCREEN FLASH.";
+                    txStatus.style.color = "#FFD60A";
+                } else {
+                    txStatus.innerText = "Torch System Ready.";
+                    txStatus.style.color = "#0f0";
+                }
 
-        function manualPulse(on) {
-            const btn = document.getElementById('vib-btn');
-            if(on) {
-                btn.classList.add('active');
-                startTone();
-            } else {
-                btn.classList.remove('active');
-                stopTone();
+                document.getElementById('enable-btn').style.display = 'none';
+                document.getElementById('send-btn').style.display = 'block';
+            } catch(e) { 
+                alert("Camera access denied. Cannot use Torch."); 
             }
         }
 
-        function startTone() {
-            initAudio();
-            if(osc) stopTone();
-            osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            
-            // SQUARE wave creates the most physical movement (jerk)
-            osc.type = 'square'; 
-            osc.frequency.value = FREQ;
-            
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-        }
-
-        function stopTone() {
-            if(osc) {
-                osc.stop();
-                osc.disconnect();
-                osc = null;
-            }
-        }
-
-        async function transmitData() {
-            const text = document.getElementById('msg-input').value.toUpperCase();
+        async function transmit() {
+            const text = document.getElementById('msg-in').value.toUpperCase();
             if(!text) return;
-            
-            // Convert to Binary
-            let bits = "";
-            for(let i=0; i<text.length; i++) {
-                bits += text.charCodeAt(i).toString(2).padStart(8, "0");
-            }
+            const bits = textToBinary(text);
 
-            // 1. HEADER (Wake up shake)
-            manualPulse(true); await wait(BIT_TIME);
-            manualPulse(false); await wait(BIT_TIME);
-            manualPulse(true); await wait(BIT_TIME);
-            manualPulse(false); await wait(BIT_TIME * 2);
+            // Disable button
+            const btn = document.getElementById('send-btn');
+            btn.disabled = true;
+            btn.innerText = "TRANSMITTING...";
+
+            // 1. HEADER (The "Attention" Strobe)
+            // Flash 3 times fast to wake up the receiver logic
+            for(let k=0; k<3; k++) {
+                await setLight(true); await wait(BIT_TIME);
+                await setLight(false); await wait(BIT_TIME);
+            }
+            await wait(BIT_TIME * 2); // Pause
 
             // 2. DATA
             for(let i=0; i<bits.length; i++) {
-                const on = bits[i] === "1";
-                if(on) startTone();
-                else stopTone();
-                
-                // Visual feedback
-                const btn = document.getElementById('vib-btn');
-                if(on) btn.classList.add('active'); else btn.classList.remove('active');
-
+                const bit = bits[i] === '1';
+                await setLight(bit);
                 await wait(BIT_TIME);
             }
 
-            stopTone();
-            document.getElementById('vib-btn').classList.remove('active');
+            // 3. DONE
+            setLight(false);
+            btn.disabled = false;
+            btn.innerText = "FIRE MESSAGE";
         }
+
+        async function setLight(on) {
+            torchUI.className = on ? 'on' : '';
+            
+            if(useScreenFallback) {
+                // Flash the entire screen white
+                flashScreen.style.display = on ? 'block' : 'none';
+            } else if(track) {
+                // Hardware Torch
+                // We use a try/catch because sometimes applying constraints too fast fails
+                try {
+                    await track.applyConstraints({ advanced: [{ torch: on }] });
+                } catch(e) { console.log("Torch lag skip"); }
+            }
+        }
+
+        function textToBinary(text) {
+            let output = "";
+            for (let i = 0; i < text.length; i++) {
+                output += text.charCodeAt(i).toString(2).padStart(8, '0');
+            }
+            return output;
+        }
+
         const wait = ms => new Promise(r => setTimeout(r, ms));
 
-
-        // --- RECEIVER (ACCELEROMETER) ---
+        // --- RECEIVER (LAPTOP) ---
         let rxRunning = false;
-        let lastZ = 0;
-        let history = new Array(100).fill(0);
+        const vid = document.getElementById('video');
+        const gCtx = document.getElementById('graph').getContext('2d');
+        const cvs = document.createElement('canvas'); 
+        const ctx = cvs.getContext('2d');
         
-        const canvas = document.getElementById('seismograph');
-        const ctx = canvas.getContext('2d');
-        
-        // Decoding Logic
+        let history = [];
         let state = "SEARCH";
         let bitBuf = "";
         let nextSample = 0;
-        let threshold = 0.5; // Sensitivity (Auto-adjusts)
+        let lastLuma = 0;
 
-        function startSensor() {
-            // iOS 13+ Permission Request
-            if (typeof DeviceMotionEvent.requestPermission === 'function') {
-                DeviceMotionEvent.requestPermission()
-                    .then(response => {
-                        if (response === 'granted') initMotion();
-                        else alert('Permission denied');
-                    })
-                    .catch(console.error);
-            } else {
-                // Non-iOS or older devices
-                initMotion();
-            }
+        async function initRx() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                vid.srcObject = stream;
+                document.getElementById('cam-btn').style.display = 'none';
+                rxRunning = true;
+                loop();
+            } catch(e) { alert("Webcam Error"); }
         }
 
-        function initMotion() {
-            window.addEventListener('devicemotion', handleMotion);
-            document.getElementById('sensor-btn').style.display = 'none';
-            rxRunning = true;
-            resizeCanvas();
-            drawLoop();
-        }
-
-        function handleMotion(event) {
-            // We only care about Z-axis (Up/Down vibration)
-            // We verify accelerationIncludingGravity to detect shake
-            const z = event.acceleration.z || event.accelerationIncludingGravity.z;
-            
-            // Calculate "Jerk" (Change in acceleration) to ignore gravity/tilt
-            const delta = Math.abs(z - lastZ);
-            lastZ = z;
-
-            // Push to history for graph
-            history.push(delta);
-            history.shift();
-            
-            // UI Update
-            document.getElementById('force-val').innerText = "FORCE: " + delta.toFixed(2);
-        }
-
-        function drawLoop() {
+        function loop() {
             if(!rxRunning) return;
-            requestAnimationFrame(drawLoop);
 
-            // 1. Draw Graph
-            ctx.fillStyle = "#000"; ctx.fillRect(0,0,canvas.width, canvas.height);
-            ctx.beginPath();
-            ctx.strokeStyle = "#ff7b72"; ctx.lineWidth = 2;
-            
-            const h = canvas.height;
-            // Scale factor: A delta of 2.0 is a HUGE shake
-            const scale = h / 2; 
+            // 1. Read Center Pixel Brightness (Small crop 20x20)
+            cvs.width=20; cvs.height=20;
+            ctx.drawImage(vid, vid.videoWidth/2-10, vid.videoHeight/2-10, 20, 20, 0, 0, 20, 20);
+            const d = ctx.getImageData(0,0,20,20).data;
+            let sum = 0;
+            for(let i=0; i<d.length; i+=4) sum += (d[i]+d[i+1]+d[i+2])/3;
+            const luma = sum / (d.length/4);
 
-            for(let i=0; i<history.length; i++) {
-                const x = (i / history.length) * canvas.width;
-                const y = h - (history[i] * scale);
-                if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-            }
-            ctx.stroke();
-
-            // 2. Logic (Sample the average of the last 10 frames)
-            const recentAvg = history.slice(-10).reduce((a,b)=>a+b,0)/10;
-            const isShaking = recentAvg > 0.3; // 0.3 is a good baseline threshold
-
-            // Draw Threshold Line
-            const thY = h - (0.3 * scale);
-            ctx.beginPath(); ctx.strokeStyle = "#00f"; 
-            ctx.moveTo(0, thY); ctx.lineTo(canvas.width, thY); ctx.stroke();
+            // 2. Adaptive Thresholding
+            history.push(luma);
+            if(history.length > 60) history.shift();
+            const min = Math.min(...history);
+            const max = Math.max(...history);
+            // Dynamic threshold is midpoint
+            const thresh = (min+max)/2;
+            const isHigh = luma > thresh;
 
             const now = Date.now();
 
+            // 3. State Machine
             if(state === "SEARCH") {
-                // Look for the header (Sustained shake)
-                if(isShaking) {
-                    // Start logic
+                // We are looking for the HEADER (Rapid flashes)
+                // If signal goes High, and range is good (>50 difference between black/white)
+                if(isHigh && (max-min > 40)) {
+                    // Check if this is a sustained high or a blip
+                    // Simplified: If we detect high contrast swing, start reading
                     state = "READ";
-                    nextSample = now + BIT_TIME * 1.5;
+                    // Sync: Assume we hit the leading edge of a bit.
+                    // Wait 1.5x BIT_TIME to align with the center of the *next* bit (Data start)
+                    // Actually, the header is 3 flashes. We can just wait for a long pause?
+                    // Let's keep it simple: Trigger on first High, treat as Start Bit.
+                    nextSample = now + BIT_TIME * 0.5; 
                     bitBuf = "";
-                    document.getElementById('rx-msg').innerText = "RUMBLE DETECTED";
+                    document.getElementById('rx-msg').innerText = "";
+                    document.getElementById('state-lbl').innerText = "State: SYNCED";
+                    document.getElementById('state-lbl').style.color = "#0f0";
                 }
-            }
+            } 
             else if (state === "READ") {
                 if(now >= nextSample) {
                     nextSample += BIT_TIME;
-                    bitBuf += isShaking ? "1" : "0";
-                    
+                    bitBuf += isHigh ? "1" : "0";
+
+                    // Byte Complete?
                     if(bitBuf.length === 8) {
-                        const char = String.fromCharCode(parseInt(bitBuf, 2));
-                        const disp = document.getElementById('rx-msg');
-                        if(disp.innerText.includes("RUMBLE")) disp.innerText = "";
-                        disp.innerText += char;
+                        const val = parseInt(bitBuf, 2);
+                        // Filter printable chars
+                        if(val >= 32 && val <= 126) {
+                            const char = String.fromCharCode(val);
+                            document.getElementById('rx-msg').innerText += char;
+                        }
                         bitBuf = "";
-                        
-                        // Vibration feedback on phone to confirm receipt
-                        if(navigator.vibrate) navigator.vibrate(50);
                     }
                 }
-                if(now > nextSample + 3000) state = "SEARCH";
+                
+                // Timeout logic: If no high signal for 3 seconds, reset
+                // Or if contrast drops (user turned off light)
+                if(now > nextSample + 3000) {
+                    state = "SEARCH";
+                    document.getElementById('state-lbl').innerText = "State: IDLE";
+                    document.getElementById('state-lbl').style.color = "#666";
+                }
             }
-        }
 
-        function resizeCanvas() {
-            canvas.width = document.getElementById('seismo-box').clientWidth;
-            canvas.height = document.getElementById('seismo-box').clientHeight;
+            // 4. Draw Graph
+            gCtx.fillStyle="#000"; gCtx.fillRect(0,0,320,60);
+            
+            // Draw Threshold Line
+            const thY = 60 - (thresh/255)*60;
+            gCtx.fillStyle="#333"; gCtx.fillRect(0, thY, 320, 1);
+
+            // Draw Signal Dot
+            gCtx.fillStyle = isHigh ? "#FFD60A" : "#444"; 
+            const y = 60 - (luma/255)*60;
+            gCtx.fillRect(155, y, 10, 10);
+
+            // Stats
+            document.getElementById('luma-lbl').innerText = "Luma: " + Math.round(luma);
+
+            requestAnimationFrame(loop);
         }
     </script>
 </body>
