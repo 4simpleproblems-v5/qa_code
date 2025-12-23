@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Prism: Fixed Uploader</title>
+    <title>Prism v4: Sparse Vector</title>
     <style>
-        :root { --bg: #000; --text: #eee; --panel: #111; --accent: #fff; }
+        :root { --bg: #050505; --text: #eee; --panel: #111; --accent: #fff; }
         body {
             background-color: var(--bg); color: var(--text);
             font-family: 'Courier New', monospace; margin: 0;
@@ -33,10 +33,9 @@
             text-shadow: 0 0 10px #000; position: relative;
         }
 
-        /* The Image Preview Overlay */
         #preview-img {
             position: absolute; top:0; left:0; width:100%; height:100%;
-            image-rendering: pixelated; /* Shows crisp pixels */
+            image-rendering: pixelated; 
             display: none; z-index: 10; opacity: 1.0;
         }
 
@@ -47,12 +46,10 @@
             cursor: pointer; background: #fff; color: #000; font-size: 1rem;
         }
         button.secondary { background: #333; color: #fff; }
-        
-        /* Hidden input */
         #file-input { display: none; }
 
-        /* Status Text */
         #tx-debug { font-size: 0.8rem; color: #FFFF00; height: 1.2rem; margin-bottom: 10px; }
+        #stat-stats { font-size: 0.7rem; color: #888; text-align: center; margin-top: 5px; }
 
         /* RECEIVER */
         #cam-container {
@@ -85,7 +82,7 @@
     <div id="tx-view" class="view active">
         <div id="prism-box">
             <span id="box-text">READY</span>
-            <canvas id="preview-img" width="20" height="20"></canvas>
+            <canvas id="preview-img" width="16" height="16"></canvas>
         </div>
         
         <div id="tx-debug">Waiting for upload...</div>
@@ -94,12 +91,9 @@
             <button class="secondary" onclick="triggerUpload()">📁 UPLOAD IMAGE</button>
             <input type="file" id="file-input" accept="image/*" onchange="handleFile(this)">
             
-            <button id="tx-btn" onclick="transmit()">TRANSMIT (60s)</button>
+            <button id="tx-btn" onclick="transmit()">TRANSMIT (SPARSE)</button>
         </div>
-        
-        <div style="font-size:0.75rem; color:#888; margin-top:15px; text-align:center;">
-            Red=Black, Green=DkGray<br>Blue=LtGray, Magenta=White
-        </div>
+        <div id="stat-stats"></div>
     </div>
 
     <div id="rx-view" class="view">
@@ -115,18 +109,21 @@
             <span id="color-detect">---</span>
         </div>
 
-        <canvas id="rx-canvas" width="20" height="20"></canvas>
+        <canvas id="rx-canvas" width="16" height="16"></canvas>
     </div>
 
     <script>
         // --- CONFIG ---
-        const RES = 20;       
-        const FRAME_MS = 150; 
+        const RES = 16;       // 16x16 Grid = 256 addresses (Perfect for 4 Base-4 digits)
+        const FRAME_MS = 200; // 200ms per flash (Slower = Robust)
         const PILOT_MS = 2000;
 
+        // Base-4 Palette
+        // 0=Red, 1=Green, 2=Blue, 3=Magenta
         const PALETTE = ['#FF0000', '#00FF00', '#0000FF', '#FF00FF'];
         
-        let txData = new Array(RES*RES).fill(0);
+        // This holds objects { idx: 150, val: 3 }
+        let packetQueue = [];
 
         function setView(v) {
             document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
@@ -141,75 +138,59 @@
         const previewCvs = document.getElementById('preview-img');
         const pCtx = previewCvs.getContext('2d', { willReadFrequently: true });
         const debug = document.getElementById('tx-debug');
+        const stats = document.getElementById('stat-stats');
 
         function triggerUpload() {
-            // Reset value so change event fires even if same file selected
             document.getElementById('file-input').value = '';
             document.getElementById('file-input').click();
         }
 
         function handleFile(input) {
             const file = input.files[0];
-            if (!file) {
-                debug.innerText = "No file selected.";
-                return;
-            }
+            if (!file) return;
 
-            debug.innerText = "Processing Image...";
+            debug.innerText = "Processing...";
+            packetQueue = [];
             
             const img = new Image();
             img.onload = () => {
-                try {
-                    // Clear canvas
-                    pCtx.fillStyle = "black";
-                    pCtx.fillRect(0,0,RES,RES);
+                // Clear and Draw
+                pCtx.fillStyle = "black";
+                pCtx.fillRect(0,0,RES,RES);
+                pCtx.drawImage(img, 0, 0, RES, RES);
+                
+                const d = pCtx.getImageData(0, 0, RES, RES).data;
+
+                // Process Pixels
+                for (let i = 0; i < d.length; i += 4) {
+                    const r = d[i], g = d[i+1], b = d[i+2];
+                    const luma = 0.299*r + 0.587*g + 0.114*b;
                     
-                    // Draw image scaled
-                    pCtx.drawImage(img, 0, 0, RES, RES);
-                    
-                    // Get Data
-                    const imageData = pCtx.getImageData(0, 0, RES, RES);
-                    const d = imageData.data;
+                    let val = 0;
+                    if(luma < 64) val = 0;       // Black
+                    else if(luma < 128) val = 1; // Dk Gray
+                    else if(luma < 192) val = 2; // Lt Gray
+                    else val = 3;                // White
 
-                    // Quantize
-                    for (let i = 0; i < d.length; i += 4) {
-                        const r = d[i];
-                        const g = d[i+1];
-                        const b = d[i+2];
-                        const luma = 0.299*r + 0.587*g + 0.114*b;
-                        
-                        let val = 0;
-                        if(luma < 64) val = 0;       
-                        else if(luma < 128) val = 1; 
-                        else if(luma < 192) val = 2; 
-                        else val = 3;                
+                    // Preview
+                    const gray = val * 85; 
+                    d[i]=gray; d[i+1]=gray; d[i+2]=gray;
 
-                        txData[i/4] = val;
-
-                        // Preview Grayscale
-                        const gray = val * 85; 
-                        d[i] = gray; d[i+1] = gray; d[i+2] = gray; 
+                    // IMPORTANT: Only queue NON-BLACK pixels
+                    if(val > 0) {
+                        packetQueue.push({ idx: i/4, val: val });
                     }
-
-                    // Put back
-                    pCtx.putImageData(imageData, 0, 0);
-                    
-                    // Show Preview
-                    previewCvs.style.display = 'block';
-                    boxText.style.display = 'none'; // Hide "READY" text
-                    debug.innerText = "Image Loaded (20x20). Ready.";
-                    debug.style.color = "#0f0";
-
-                } catch (e) {
-                    debug.innerText = "Error: " + e.message;
-                    debug.style.color = "red";
                 }
+                
+                pCtx.putImageData(new ImageData(d, RES, RES), 0, 0);
+                previewCvs.style.display = 'block';
+                boxText.style.display = 'none';
+                
+                const time = Math.ceil((packetQueue.length * 5 * FRAME_MS) / 1000) + 4;
+                debug.innerText = "Ready.";
+                stats.innerText = `${packetQueue.length} Active Pixels. Est Time: ${time}s`;
+                debug.style.color = "#0f0";
             };
-            
-            img.onerror = () => {
-                debug.innerText = "Error loading image file.";
-            };
-
             img.src = URL.createObjectURL(file);
         }
 
@@ -217,41 +198,50 @@
         async function transmit() {
             const btn = document.getElementById('tx-btn');
             btn.disabled = true;
-            previewCvs.style.display = 'none'; // Hide preview to flash colors
+            previewCvs.style.display = 'none';
             
             // 1. PILOT
             box.style.background = "#FFF";
             boxText.style.display = 'block';
             boxText.innerText = "PILOT";
             boxText.style.color = "#000";
-            debug.innerText = "Sending Pilot Tone...";
             await wait(PILOT_MS);
 
-            // 2. SYNC
+            // 2. SYNC (Black)
             box.style.background = "#000";
             boxText.innerText = "";
-            debug.innerText = "Syncing...";
-            await wait(FRAME_MS * 2);
+            await wait(FRAME_MS * 3);
 
-            // 3. STREAM
+            // 3. STREAM PACKETS
+            // Each Packet = 4 Flashes (Address) + 1 Flash (Color)
             btn.innerText = "STREAMING...";
-            debug.innerText = "Transmitting Pixels...";
             
-            for(let i=0; i<txData.length; i++) {
-                const val = txData[i];
-                box.style.background = PALETTE[val];
+            for(let i=0; i<packetQueue.length; i++) {
+                const pkt = packetQueue[i];
+                
+                // Convert Address (0-255) to 4 Base-4 Digits
+                // e.g. 255 -> 3333
+                let addr = pkt.idx.toString(4).padStart(4, "0");
+                
+                // Flash Address (4 steps)
+                for(let k=0; k<4; k++) {
+                    const digit = parseInt(addr[k]);
+                    box.style.background = PALETTE[digit];
+                    await wait(FRAME_MS);
+                }
+
+                // Flash Color Value (1 step)
+                box.style.background = PALETTE[pkt.val];
                 await wait(FRAME_MS);
             }
 
             // Done
             box.style.background = "#000";
-            btn.innerText = "TRANSMIT (60s)";
+            btn.innerText = "TRANSMIT (SPARSE)";
             btn.disabled = false;
-            
-            // Restore Preview
             previewCvs.style.display = 'block'; 
             boxText.style.display = 'none';
-            debug.innerText = "Transmission Complete.";
+            debug.innerText = "Done.";
         }
         const wait = ms => new Promise(r => setTimeout(r, ms));
 
@@ -268,7 +258,7 @@
 
         let state = "SEARCH";
         let nextSample = 0;
-        let pixelIndex = 0;
+        let nibbleBuffer = ""; // Stores address digits
 
         async function startRx() {
             try {
@@ -278,8 +268,7 @@
                 document.getElementById('cam-btn').style.display = 'none';
                 rxRunning = true;
                 
-                // Clear Canvas
-                rxCtx.fillStyle = "#222";
+                rxCtx.fillStyle = "#000";
                 rxCtx.fillRect(0,0,RES,RES);
                 
                 loop();
@@ -296,10 +285,8 @@
             let r=0, g=0, b=0;
             for(let i=0; i<d.length; i+=4) { r+=d[i]; g+=d[i+1]; b+=d[i+2]; }
             r/=900; g/=900; b/=900;
-
             const hsl = rgbToHsl(r,g,b);
-            const h = hsl[0];
-            const l = hsl[2];
+            const h = hsl[0], l = hsl[2];
 
             let detected = "DARK";
             let val = -1;
@@ -307,10 +294,10 @@
             if(l > 0.8) { detected = "WHITE (PILOT)"; }
             else if(l < 0.25) { detected = "DARK"; }
             else {
-                if(h >= 340 || h <= 30) { detected="RED (BLK)"; val=0; colorLbl.style.color="#F44"; }
-                else if(h >= 80 && h <= 160) { detected="GRN (DK)"; val=1; colorLbl.style.color="#4F4"; }
-                else if(h >= 200 && h <= 260) { detected="BLU (LT)"; val=2; colorLbl.style.color="#44F"; }
-                else if(h >= 280 && h <= 340) { detected="MAG (WHT)"; val=3; colorLbl.style.color="#F4F"; }
+                if(h >= 340 || h <= 30) { detected="RED (0)"; val=0; colorLbl.style.color="#F44"; }
+                else if(h >= 80 && h <= 160) { detected="GRN (1)"; val=1; colorLbl.style.color="#4F4"; }
+                else if(h >= 200 && h <= 260) { detected="BLU (2)"; val=2; colorLbl.style.color="#44F"; }
+                else if(h >= 280 && h <= 340) { detected="MAG (3)"; val=3; colorLbl.style.color="#F4F"; }
                 else { detected="UNCERTAIN"; colorLbl.style.color="#888"; }
             }
             colorLbl.innerText = detected;
@@ -326,8 +313,9 @@
                 stateLbl.style.color = "#FFD60A";
                 if(detected === "DARK") {
                     state = "READ";
+                    // Sync: 1.5 frames delay to center sampling
                     nextSample = now + (FRAME_MS * 1.5);
-                    pixelIndex = 0;
+                    nibbleBuffer = "";
                     rxCtx.fillStyle = "#000"; rxCtx.fillRect(0,0,RES,RES);
                     stateLbl.innerText = "RECEIVING";
                     stateLbl.style.color = "#0f0";
@@ -337,19 +325,35 @@
                 if(now >= nextSample) {
                     nextSample += FRAME_MS;
                     
-                    if(pixelIndex < RES*RES) {
-                        const v = val === -1 ? 0 : val;
+                    // Default to 0 if uncertain/dark (Self-healingish)
+                    const v = val === -1 ? 0 : val;
+                    
+                    nibbleBuffer += v.toString();
+
+                    // Packet is 5 digits long: 4 for Address, 1 for Color
+                    if(nibbleBuffer.length === 5) {
+                        const addrStr = nibbleBuffer.substring(0, 4);
+                        const colorVal = parseInt(nibbleBuffer[4]);
+                        
+                        const addr = parseInt(addrStr, 4);
+                        
+                        // Draw it!
                         const grayLevels = ["#000", "#555", "#AAA", "#FFF"];
-                        rxCtx.fillStyle = grayLevels[v];
-                        const x = pixelIndex % RES;
-                        const y = Math.floor(pixelIndex / RES);
+                        rxCtx.fillStyle = grayLevels[colorVal];
+                        const x = addr % RES;
+                        const y = Math.floor(addr / RES);
                         rxCtx.fillRect(x, y, 1, 1);
-                        pixelIndex++;
-                    } else {
-                        state = "SEARCH";
-                        stateLbl.innerText = "COMPLETE";
-                        stateLbl.style.color = "#FFF";
+                        
+                        // Reset for next packet
+                        nibbleBuffer = "";
                     }
+                }
+                
+                // Timeout
+                if(now > nextSample + 5000) {
+                    state = "SEARCH";
+                    stateLbl.innerText = "COMPLETE";
+                    stateLbl.style.color = "#FFF";
                 }
             }
             requestAnimationFrame(loop);
