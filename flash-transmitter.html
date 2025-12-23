@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Prism v4: Sparse Vector</title>
+    <title>Project Mag-Net</title>
     <style>
-        :root { --bg: #050505; --text: #eee; --panel: #111; --accent: #fff; }
+        :root { --bg: #00111f; --line: #00d2ff; --text: #bfefff; }
         body {
             background-color: var(--bg); color: var(--text);
             font-family: 'Courier New', monospace; margin: 0;
@@ -13,118 +13,92 @@
             overflow: hidden; -webkit-user-select: none;
         }
 
-        /* NAV */
-        .nav { display: flex; height: 50px; border-bottom: 1px solid #333; }
+        /* NAVIGATION */
+        .nav { display: flex; height: 60px; border-bottom: 1px solid #004455; }
         .nav-item {
             flex: 1; display: flex; align-items: center; justify-content: center;
-            background: #111; cursor: pointer; font-weight: bold; border-right: 1px solid #333;
+            background: #001a2e; cursor: pointer; font-weight: bold; 
+            border-right: 1px solid #004455; color: #447788; transition: 0.2s;
         }
-        .nav-item.active { background: #222; color: #fff; border-bottom: 3px solid #fff; }
+        .nav-item.active { background: #002b4d; color: var(--line); border-bottom: 3px solid var(--line); }
 
-        .view { display: none; flex: 1; flex-direction: column; align-items: center; padding: 15px; }
+        .view { display: none; flex: 1; flex-direction: column; align-items: center; padding: 20px; }
         .view.active { display: flex; }
 
-        /* TRANSMITTER */
-        #prism-box {
-            width: 300px; height: 300px; margin-bottom: 5px;
-            background: #000; border: 4px solid #fff;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 2rem; font-weight: bold; color: #fff;
-            text-shadow: 0 0 10px #000; position: relative;
+        /* COMPASS VISUAL */
+        #compass-ui {
+            width: 200px; height: 200px; border: 2px solid #004455; border-radius: 50%;
+            position: relative; margin: 20px; display: flex; align-items: center; justify-content: center;
+        }
+        #needle {
+            width: 4px; height: 90px; background: var(--line);
+            position: absolute; top: 10px; transform-origin: bottom center;
+            transition: transform 0.1s;
+        }
+        #needle::after { content: 'N'; position: absolute; top: -20px; left: -5px; color: var(--line); }
+
+        /* GRAPH */
+        canvas {
+            width: 100%; max-width: 400px; height: 100px;
+            background: #000; border: 1px solid #004455; margin-top: 10px;
         }
 
-        #preview-img {
-            position: absolute; top:0; left:0; width:100%; height:100%;
-            image-rendering: pixelated; 
-            display: none; z-index: 10; opacity: 1.0;
+        /* CONTROLS */
+        button {
+            padding: 20px; font-size: 1.1rem; font-weight: bold;
+            background: var(--line); color: #000; border: none; border-radius: 4px;
+            cursor: pointer; width: 100%; max-width: 300px; margin-top: 20px;
+        }
+        input {
+            padding: 15px; background: #002b4d; border: 1px solid #005566; color: #fff;
+            text-align: center; width: 100%; max-width: 300px; 
+            font-family: monospace; font-size: 1.2rem;
         }
 
-        .controls { width: 100%; max-width: 300px; display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
-        
-        button { 
-            padding: 15px; border: none; border-radius: 4px; font-weight: bold; 
-            cursor: pointer; background: #fff; color: #000; font-size: 1rem;
-        }
-        button.secondary { background: #333; color: #fff; }
-        #file-input { display: none; }
-
-        #tx-debug { font-size: 0.8rem; color: #FFFF00; height: 1.2rem; margin-bottom: 10px; }
-        #stat-stats { font-size: 0.7rem; color: #888; text-align: center; margin-top: 5px; }
-
-        /* RECEIVER */
-        #cam-container {
-            position: relative; width: 300px; height: 200px;
-            background: #000; border: 2px solid #555; overflow: hidden; margin-bottom: 10px;
-        }
-        video { width: 100%; height: 100%; object-fit: cover; }
-        
-        #rx-canvas {
-            width: 300px; height: 300px; background: #111; border: 1px solid #333;
-            image-rendering: pixelated; 
-        }
-        
-        .stat-row { 
-            width: 300px; display: flex; justify-content: space-between; 
-            font-size: 0.8rem; color: #aaa; margin-bottom: 5px; font-weight: bold;
-        }
-        
-        #color-detect { color: #fff; }
+        .status { font-size: 0.9rem; color: #668899; margin-top: 10px; }
+        #rx-log { font-size: 1.5rem; color: #fff; min-height: 40px; margin-top:10px; border-bottom:1px solid #333;}
 
     </style>
 </head>
 <body>
 
     <div class="nav">
-        <div class="nav-item active" onclick="setView('tx')">SENDER</div>
-        <div class="nav-item" onclick="setView('rx')">RECEIVER</div>
+        <div class="nav-item active" onclick="setView('tx')">SENDER (COIL)</div>
+        <div class="nav-item" onclick="setView('rx')">RECEIVER (COMPASS)</div>
     </div>
 
     <div id="tx-view" class="view active">
-        <div id="prism-box">
-            <span id="box-text">READY</span>
-            <canvas id="preview-img" width="16" height="16"></canvas>
+        <h2 style="color:var(--line)">INDUCTION COIL</h2>
+        <div style="font-size:0.8rem; text-align:center; margin-bottom:20px; color:#aaa;">
+            Uses Speaker Magnet as Data Antenna.<br>
+            Set Volume to MAX. Place Speaker ON Receiver Compass.
         </div>
-        
-        <div id="tx-debug">Waiting for upload...</div>
 
-        <div class="controls">
-            <button class="secondary" onclick="triggerUpload()">📁 UPLOAD IMAGE</button>
-            <input type="file" id="file-input" accept="image/*" onchange="handleFile(this)">
-            
-            <button id="tx-btn" onclick="transmit()">TRANSMIT (SPARSE)</button>
-        </div>
-        <div id="stat-stats"></div>
+        <input type="text" id="tx-input" value="MAG" placeholder="MSG">
+        <button id="tx-btn" onclick="transmit()">ENERGIZE COIL</button>
+        <div id="tx-status" class="status">Ready</div>
     </div>
 
     <div id="rx-view" class="view">
-        <button id="cam-btn" onclick="startRx()" style="width:300px; margin-bottom:10px;">START CAMERA</button>
+        <h2 style="color:var(--line)">MAGNETOMETER</h2>
+        <button id="perm-btn" onclick="reqPerms()">CALIBRATE SENSORS</button>
         
-        <div id="cam-container">
-            <video id="video" autoplay playsinline muted></video>
-            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:30px; height:30px; border:3px solid #fff; border-radius:50%; box-shadow:0 0 0 100px rgba(0,0,0,0.85);"></div>
-        </div>
-        
-        <div class="stat-row">
-            <span id="state-lbl">IDLE</span>
-            <span id="color-detect">---</span>
+        <div id="compass-ui">
+            <div id="needle"></div>
         </div>
 
-        <canvas id="rx-canvas" width="16" height="16"></canvas>
+        <canvas id="scope"></canvas>
+        <div class="status">Magnetic Deviation</div>
+
+        <div id="rx-log"></div>
+        <div id="rx-debug" class="status">Waiting for flux...</div>
     </div>
 
     <script>
         // --- CONFIG ---
-        const RES = 16;       // 16x16 Grid = 256 addresses (Perfect for 4 Base-4 digits)
-        const FRAME_MS = 200; // 200ms per flash (Slower = Robust)
-        const PILOT_MS = 2000;
-
-        // Base-4 Palette
-        // 0=Red, 1=Green, 2=Blue, 3=Magenta
-        const PALETTE = ['#FF0000', '#00FF00', '#0000FF', '#FF00FF'];
+        const BIT_TIME = 300; // ms per bit (Magnets are slow to settle)
+        const FREQ_LOW = 20;  // 20Hz (Barely audible, high magnetic flux)
         
-        // This holds objects { idx: 150, val: 3 }
-        let packetQueue = [];
-
         function setView(v) {
             document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
@@ -132,250 +106,196 @@
             event.target.classList.add('active');
         }
 
-        // --- IMAGE PROCESSOR ---
-        const box = document.getElementById('prism-box');
-        const boxText = document.getElementById('box-text');
-        const previewCvs = document.getElementById('preview-img');
-        const pCtx = previewCvs.getContext('2d', { willReadFrequently: true });
-        const debug = document.getElementById('tx-debug');
-        const stats = document.getElementById('stat-stats');
-
-        function triggerUpload() {
-            document.getElementById('file-input').value = '';
-            document.getElementById('file-input').click();
-        }
-
-        function handleFile(input) {
-            const file = input.files[0];
-            if (!file) return;
-
-            debug.innerText = "Processing...";
-            packetQueue = [];
-            
-            const img = new Image();
-            img.onload = () => {
-                // Clear and Draw
-                pCtx.fillStyle = "black";
-                pCtx.fillRect(0,0,RES,RES);
-                pCtx.drawImage(img, 0, 0, RES, RES);
-                
-                const d = pCtx.getImageData(0, 0, RES, RES).data;
-
-                // Process Pixels
-                for (let i = 0; i < d.length; i += 4) {
-                    const r = d[i], g = d[i+1], b = d[i+2];
-                    const luma = 0.299*r + 0.587*g + 0.114*b;
-                    
-                    let val = 0;
-                    if(luma < 64) val = 0;       // Black
-                    else if(luma < 128) val = 1; // Dk Gray
-                    else if(luma < 192) val = 2; // Lt Gray
-                    else val = 3;                // White
-
-                    // Preview
-                    const gray = val * 85; 
-                    d[i]=gray; d[i+1]=gray; d[i+2]=gray;
-
-                    // IMPORTANT: Only queue NON-BLACK pixels
-                    if(val > 0) {
-                        packetQueue.push({ idx: i/4, val: val });
-                    }
-                }
-                
-                pCtx.putImageData(new ImageData(d, RES, RES), 0, 0);
-                previewCvs.style.display = 'block';
-                boxText.style.display = 'none';
-                
-                const time = Math.ceil((packetQueue.length * 5 * FRAME_MS) / 1000) + 4;
-                debug.innerText = "Ready.";
-                stats.innerText = `${packetQueue.length} Active Pixels. Est Time: ${time}s`;
-                debug.style.color = "#0f0";
-            };
-            img.src = URL.createObjectURL(file);
-        }
-
-        // --- TRANSMITTER LOOP ---
-        async function transmit() {
-            const btn = document.getElementById('tx-btn');
-            btn.disabled = true;
-            previewCvs.style.display = 'none';
-            
-            // 1. PILOT
-            box.style.background = "#FFF";
-            boxText.style.display = 'block';
-            boxText.innerText = "PILOT";
-            boxText.style.color = "#000";
-            await wait(PILOT_MS);
-
-            // 2. SYNC (Black)
-            box.style.background = "#000";
-            boxText.innerText = "";
-            await wait(FRAME_MS * 3);
-
-            // 3. STREAM PACKETS
-            // Each Packet = 4 Flashes (Address) + 1 Flash (Color)
-            btn.innerText = "STREAMING...";
-            
-            for(let i=0; i<packetQueue.length; i++) {
-                const pkt = packetQueue[i];
-                
-                // Convert Address (0-255) to 4 Base-4 Digits
-                // e.g. 255 -> 3333
-                let addr = pkt.idx.toString(4).padStart(4, "0");
-                
-                // Flash Address (4 steps)
-                for(let k=0; k<4; k++) {
-                    const digit = parseInt(addr[k]);
-                    box.style.background = PALETTE[digit];
-                    await wait(FRAME_MS);
-                }
-
-                // Flash Color Value (1 step)
-                box.style.background = PALETTE[pkt.val];
-                await wait(FRAME_MS);
-            }
-
-            // Done
-            box.style.background = "#000";
-            btn.innerText = "TRANSMIT (SPARSE)";
-            btn.disabled = false;
-            previewCvs.style.display = 'block'; 
-            boxText.style.display = 'none';
-            debug.innerText = "Done.";
-        }
+        // --- TRANSMITTER (Web Audio API) ---
         const wait = ms => new Promise(r => setTimeout(r, ms));
+        let audioCtx;
 
+        async function transmit() {
+            if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if(audioCtx.state === 'suspended') await audioCtx.resume();
 
-        // --- RECEIVER ---
-        let rxRunning = false;
-        const vid = document.getElementById('video');
-        const cvs = document.createElement('canvas'); 
-        const ctx = cvs.getContext('2d', { willReadFrequently: true });
-        
-        const rxCtx = document.getElementById('rx-canvas').getContext('2d');
-        const stateLbl = document.getElementById('state-lbl');
-        const colorLbl = document.getElementById('color-detect');
+            const text = document.getElementById('tx-input').value.toUpperCase();
+            const btn = document.getElementById('tx-btn');
+            const stat = document.getElementById('tx-status');
+            btn.disabled = true;
 
-        let state = "SEARCH";
-        let nextSample = 0;
-        let nibbleBuffer = ""; // Stores address digits
+            // Encode to Binary
+            let bits = "";
+            for (let i = 0; i < text.length; i++) {
+                bits += text.charCodeAt(i).toString(2).padStart(8, "0");
+            }
 
-        async function startRx() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                vid.srcObject = stream;
-                vid.onloadedmetadata = () => vid.play();
-                document.getElementById('cam-btn').style.display = 'none';
-                rxRunning = true;
-                
-                rxCtx.fillStyle = "#000";
-                rxCtx.fillRect(0,0,RES,RES);
-                
-                loop();
-            } catch(e) { alert(e); }
-        }
+            stat.innerText = "PILOT TONE (ALIGN NOW)...";
+            playTone(true); // Continuous tone to let user align
+            await wait(2000);
+            playTone(false);
+            await wait(500); // Silence
 
-        function loop() {
-            if(!rxRunning) return;
-
-            cvs.width=30; cvs.height=30;
-            ctx.drawImage(vid, vid.videoWidth/2-15, vid.videoHeight/2-15, 30, 30, 0, 0, 30, 30);
-            const d = ctx.getImageData(0,0,30,30).data;
+            stat.innerText = "TRANSMITTING...";
             
-            let r=0, g=0, b=0;
-            for(let i=0; i<d.length; i+=4) { r+=d[i]; g+=d[i+1]; b+=d[i+2]; }
-            r/=900; g/=900; b/=900;
-            const hsl = rgbToHsl(r,g,b);
-            const h = hsl[0], l = hsl[2];
-
-            let detected = "DARK";
-            let val = -1;
-
-            if(l > 0.8) { detected = "WHITE (PILOT)"; }
-            else if(l < 0.25) { detected = "DARK"; }
-            else {
-                if(h >= 340 || h <= 30) { detected="RED (0)"; val=0; colorLbl.style.color="#F44"; }
-                else if(h >= 80 && h <= 160) { detected="GRN (1)"; val=1; colorLbl.style.color="#4F4"; }
-                else if(h >= 200 && h <= 260) { detected="BLU (2)"; val=2; colorLbl.style.color="#44F"; }
-                else if(h >= 280 && h <= 340) { detected="MAG (3)"; val=3; colorLbl.style.color="#F4F"; }
-                else { detected="UNCERTAIN"; colorLbl.style.color="#888"; }
-            }
-            colorLbl.innerText = detected;
-
-            const now = Date.now();
-
-            if(state === "SEARCH") {
-                stateLbl.innerText = "WAIT FOR PILOT";
-                if(detected.includes("PILOT")) state = "PILOT";
-            }
-            else if(state === "PILOT") {
-                stateLbl.innerText = "LOCKED";
-                stateLbl.style.color = "#FFD60A";
-                if(detected === "DARK") {
-                    state = "READ";
-                    // Sync: 1.5 frames delay to center sampling
-                    nextSample = now + (FRAME_MS * 1.5);
-                    nibbleBuffer = "";
-                    rxCtx.fillStyle = "#000"; rxCtx.fillRect(0,0,RES,RES);
-                    stateLbl.innerText = "RECEIVING";
-                    stateLbl.style.color = "#0f0";
-                }
-            }
-            else if(state === "READ") {
-                if(now >= nextSample) {
-                    nextSample += FRAME_MS;
-                    
-                    // Default to 0 if uncertain/dark (Self-healingish)
-                    const v = val === -1 ? 0 : val;
-                    
-                    nibbleBuffer += v.toString();
-
-                    // Packet is 5 digits long: 4 for Address, 1 for Color
-                    if(nibbleBuffer.length === 5) {
-                        const addrStr = nibbleBuffer.substring(0, 4);
-                        const colorVal = parseInt(nibbleBuffer[4]);
-                        
-                        const addr = parseInt(addrStr, 4);
-                        
-                        // Draw it!
-                        const grayLevels = ["#000", "#555", "#AAA", "#FFF"];
-                        rxCtx.fillStyle = grayLevels[colorVal];
-                        const x = addr % RES;
-                        const y = Math.floor(addr / RES);
-                        rxCtx.fillRect(x, y, 1, 1);
-                        
-                        // Reset for next packet
-                        nibbleBuffer = "";
-                    }
-                }
+            for(let i=0; i<bits.length; i++) {
+                const bit = bits[i];
+                stat.innerText = `Bit ${i+1}/${bits.length}: ${bit}`;
                 
-                // Timeout
-                if(now > nextSample + 5000) {
-                    state = "SEARCH";
-                    stateLbl.innerText = "COMPLETE";
-                    stateLbl.style.color = "#FFF";
+                if(bit === '1') {
+                    playTone(true); // Magnet ON
+                } else {
+                    playTone(false); // Magnet OFF
                 }
+                await wait(BIT_TIME);
             }
-            requestAnimationFrame(loop);
+
+            playTone(false);
+            stat.innerText = "COMPLETE";
+            btn.disabled = false;
         }
 
-        function rgbToHsl(r, g, b) {
-            r /= 255, g /= 255, b /= 255;
-            const max = Math.max(r, g, b), min = Math.min(r, g, b);
-            let h, s, l = (max + min) / 2;
-            if (max === min) { h = s = 0; } 
-            else {
-                const d = max - min;
-                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-                switch (max) {
-                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-                    case g: h = (b - r) / d + 2; break;
-                    case b: h = (r - g) / d + 4; break;
+        let osc = null;
+        let gain = null;
+
+        function playTone(on) {
+            if(on) {
+                if(osc) return; // Already running
+                osc = audioCtx.createOscillator();
+                gain = audioCtx.createGain();
+                
+                // Square wave creates sharper magnetic edges
+                osc.type = 'square'; 
+                osc.frequency.setValueAtTime(FREQ_LOW, audioCtx.currentTime);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+            } else {
+                if(osc) {
+                    osc.stop();
+                    osc.disconnect();
+                    osc = null;
                 }
-                h /= 6;
             }
-            return [h * 360, s, l];
         }
+
+        // --- RECEIVER (Compass API) ---
+        const canvas = document.getElementById('scope');
+        const ctx = canvas.getContext('2d');
+        const needle = document.getElementById('needle');
+        const rxLog = document.getElementById('rx-log');
+        const rxDebug = document.getElementById('rx-debug');
+
+        let isReading = false;
+        let history = new Array(100).fill(0);
+        let baseHeading = 0; // The "Normal" North
+
+        // Logic
+        let bitBuffer = "";
+        let signalStart = 0;
+        
+        // We look for Variance (Jitter)
+        // When the magnet is pulsing at 20Hz, the compass value goes crazy (high variance)
+        // When silent, the compass is stable (low variance)
+
+        function draw() {
+            if(!isReading) return;
+            
+            ctx.fillStyle = '#00111f';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.beginPath();
+            ctx.strokeStyle = '#00d2ff';
+            
+            const step = canvas.width / history.length;
+            for(let i=0; i<history.length; i++) {
+                const val = history[i]; // Variance value
+                const y = canvas.height - (val * 10); // Scale up
+                if(i===0) ctx.moveTo(0, y);
+                else ctx.lineTo(i*step, y);
+            }
+            ctx.stroke();
+            requestAnimationFrame(draw);
+        }
+
+        function reqPerms() {
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(r => { if (r == 'granted') startRx(); })
+                    .catch(alert);
+            } else { startRx(); }
+        }
+
+        function startRx() {
+            document.getElementById('perm-btn').style.display = 'none';
+            isReading = true;
+            window.addEventListener('deviceorientation', handleOrient);
+            
+            // Start Sampling Loop (Decoupled from event rate)
+            setInterval(processSignal, BIT_TIME); 
+            draw();
+        }
+
+        let recentReadings = [];
+
+        function handleOrient(e) {
+            // e.alpha is the compass heading (0-360) 
+
+[Image of compass rose]
+
+            // We just need the raw value to detect jitter
+            if(e.alpha !== null) {
+                recentReadings.push(e.alpha);
+                
+                // Visual Needle (Smoothed)
+                needle.style.transform = `rotate(${e.alpha}deg)`;
+            }
+        }
+
+        function processSignal() {
+            if(recentReadings.length < 2) return;
+
+            // 1. Calculate Standard Deviation (Jitter) of recent readings
+            // If the speaker is blasting 20Hz magnetic flux, this will be HIGH.
+            // If silent, this will be LOW.
+            
+            let sum = 0;
+            for(let v of recentReadings) sum += v;
+            const avg = sum / recentReadings.length;
+            
+            let sqDiff = 0;
+            for(let v of recentReadings) sqDiff += (v - avg) ** 2;
+            const variance = Math.sqrt(sqDiff / recentReadings.length);
+            
+            // Clear buffer for next sample
+            recentReadings = [];
+
+            // Graphing
+            history.push(variance);
+            history.shift();
+
+            // Threshold Logic
+            // A variance > 0.5 usually means magnetic interference
+            const THRESH = 0.5;
+            
+            const bit = variance > THRESH ? "1" : "0";
+            
+            rxDebug.innerText = `Flux Variance: ${variance.toFixed(2)} | Bit: ${bit}`;
+            rxDebug.style.color = bit === "1" ? "#fff" : "#447788";
+
+            // Decode Stream
+            bitBuffer += bit;
+            
+            // Simple byte framing
+            if(bitBuffer.length >= 8) {
+                // Check if it looks like a valid char (simple filter)
+                // This is a naive decoder (assumes perfect sync). 
+                // In reality, you'd implement a Start Bit logic.
+                // For this demo, we just dump chars.
+                const byte = bitBuffer.substring(0,8);
+                const val = parseInt(byte, 2);
+                if(val >= 32 && val <= 126) {
+                     rxLog.innerText += String.fromCharCode(val);
+                }
+                bitBuffer = bitBuffer.substring(8); // Shift
+            }
+        }
+
     </script>
 </body>
 </html>
