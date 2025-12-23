@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PixelStream v2: Sparse Matrix</title>
+    <title>Project Seismic</title>
     <style>
-        :root { --bg: #111; --panel: #1e1e1e; --accent: #32D74B; --text: #eee; }
+        :root { --bg: #0d1117; --panel: #161b22; --accent: #ff7b72; --text: #c9d1d9; }
         body {
             background-color: var(--bg); color: var(--text);
             font-family: 'Courier New', monospace; margin: 0;
@@ -14,356 +14,304 @@
         }
 
         /* NAVIGATION */
-        .nav { display: flex; height: 50px; border-bottom: 1px solid #333; }
+        .nav { display: flex; height: 60px; border-bottom: 1px solid #30363d; }
         .nav-item {
             flex: 1; display: flex; align-items: center; justify-content: center;
-            background: #222; cursor: pointer; font-weight: bold; border-right: 1px solid #333;
+            background: #21262d; cursor: pointer; font-weight: bold; font-size: 1.1rem;
         }
-        .nav-item.active { background: var(--accent); color: #000; }
+        .nav-item.active { background: var(--panel); color: var(--accent); border-bottom: 4px solid var(--accent); }
 
-        .view { display: none; flex: 1; flex-direction: column; align-items: center; padding: 10px; overflow-y: auto; }
-        .view.active { display: flex; }
+        .screen { display: none; flex: 1; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        .screen.active { display: flex; }
 
-        /* EDITOR */
-        .grid-container {
-            display: grid; grid-template-columns: repeat(32, 1fr);
-            width: 300px; height: 300px; border: 1px solid #555; background: #000;
-            touch-action: none; image-rendering: pixelated;
+        /* TRANSMITTER UI */
+        #vib-btn {
+            width: 200px; height: 200px; border-radius: 50%;
+            background: #21262d; border: 4px solid #30363d;
+            color: #8b949e; font-size: 1.2rem; font-weight: bold;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.1s;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-        .pixel { background: #000; }
-        .pixel.on { background: #fff; }
-
-        #tx-flash {
-            width: 300px; height: 300px; background: #000; border: 4px solid #fff;
-            display: none; align-items: center; justify-content: center;
-            font-size: 2rem; font-weight: bold; color: #000;
-            position: absolute; top: 10px; z-index: 100;
+        #vib-btn:active, #vib-btn.active {
+            background: var(--accent); color: #000;
+            transform: scale(0.95); box-shadow: 0 0 50px var(--accent);
         }
-        #tx-flash.active { display: flex; }
 
-        .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; width: 300px; }
-        button {
-            flex: 1; padding: 12px; border: none; border-radius: 8px; min-width: 80px;
-            font-weight: bold; cursor: pointer; background: #333; color: #fff;
+        input {
+            width: 80%; padding: 15px; margin-top: 30px;
+            background: #0d1117; border: 1px solid #30363d; color: #fff;
+            border-radius: 8px; font-family: monospace; text-align: center;
         }
-        button.primary { background: var(--accent); color: #000; flex-basis: 100%; }
+
+        /* RECEIVER UI */
+        #seismo-box {
+            position: relative; width: 100%; max-width: 400px; height: 200px;
+            background: #000; border: 2px solid #30363d; margin-bottom: 20px;
+            overflow: hidden;
+        }
+        #seismograph { width: 100%; height: 100%; }
         
-        input[type="file"] { display: none; }
-        .file-btn { background: #0A84FF; color: #fff; }
-
-        /* RECEIVER */
-        #cam-box {
-            position: relative; width: 300px; height: 250px;
-            background: #000; border: 2px solid #555; overflow: hidden; margin-bottom: 10px;
-        }
-        video { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.2); }
+        .status-row { display: flex; gap: 20px; font-size: 0.8rem; color: #8b949e; margin-bottom: 10px; }
         
-        #rx-canvas { width: 300px; height: 300px; background: #000; border: 1px solid #444; image-rendering: pixelated; }
-        .status-bar { width: 300px; display: flex; justify-content: space-between; font-size: 0.8rem; color: #888; margin-bottom: 5px; }
-        #graph { width: 300px; height: 30px; background: #222; margin-top: 5px; }
+        #rx-msg { 
+            font-size: 2rem; color: var(--accent); min-height: 3rem; 
+            text-shadow: 0 0 10px rgba(255,123,114,0.5);
+        }
+
+        button.action {
+            padding: 15px 40px; background: var(--accent); color: #000;
+            border: none; border-radius: 8px; font-weight: bold; font-size: 1rem;
+        }
 
     </style>
 </head>
 <body>
 
     <div class="nav">
-        <div class="nav-item active" onclick="setView('tx')">SEND</div>
-        <div class="nav-item" onclick="setView('rx')">RECEIVE</div>
+        <div class="nav-item active" onclick="setTab('tx')">LAPTOP (TX)</div>
+        <div class="nav-item" onclick="setTab('rx')">PHONE (RX)</div>
     </div>
 
-    <div id="tx-view" class="view active">
-        <div id="tx-flash"></div>
+    <div id="tx-screen" class="screen active">
+        <div id="vib-btn" onmousedown="manualPulse(true)" onmouseup="manualPulse(false)">
+            HOLD TO<br>RUMBLE
+        </div>
         
-        <div class="status-bar">
-            <span id="pixel-count">0 White Pixels</span>
-            <span id="compress-stat" style="color:var(--accent)">0s est</span>
-        </div>
-
-        <div class="grid-container" id="grid"></div>
-
-        <div class="controls">
-            <button onclick="clearGrid()">Clear</button>
-            <button class="file-btn" onclick="document.getElementById('file-in').click()">Upload Img</button>
-            <button class="primary" onclick="transmitImage()">TRANSMIT (SPARSE)</button>
-        </div>
-        <input type="file" id="file-in" accept="image/*" onchange="handleImageUpload(this)">
+        <input type="text" id="msg-input" placeholder="SECRET MSG" maxlength="8">
+        <button class="action" onclick="transmitData()" style="margin-top:10px; width:80%;">SEND DATA</button>
+        
+        <p style="font-size:0.8rem; color:#666; margin-top:30px; max-width:300px; text-align:center;">
+            Set Volume to 100%.<br>Place iPhone on laptop palm rest.
+        </p>
     </div>
 
-    <div id="rx-view" class="view">
-        <button id="start-cam" class="primary" style="width:300px; margin-bottom:10px;" onclick="startRx()">START CAMERA</button>
+    <div id="rx-screen" class="screen">
+        <button id="sensor-btn" class="action" onclick="startSensor()">ENABLE SENSORS</button>
         
-        <div id="cam-box">
-            <video id="video" autoplay playsinline muted></video>
-            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:30px; height:30px; border:2px solid #0f0; box-shadow:0 0 0 100px rgba(0,0,0,0.85);"></div>
+        <div class="status-row">
+            <span id="force-val">FORCE: 0.00</span>
+            <span id="thresh-val">THR: 0.00</span>
         </div>
 
-        <div class="status-bar">
-            <span id="rx-status">Idle</span>
-            <span id="rx-progress">0%</span>
+        <div id="seismo-box">
+            <canvas id="seismograph"></canvas>
+            <div id="thresh-line" style="position:absolute; bottom:20%; width:100%; height:1px; background:#00f; opacity:0.5;"></div>
         </div>
 
-        <canvas id="rx-canvas" width="32" height="32"></canvas>
-        <canvas id="graph" width="300" height="30"></canvas>
+        <div id="rx-msg">WAITING...</div>
+        <div style="font-size:0.7rem; color:#444;">Keep phone still flat on surface</div>
     </div>
 
     <script>
         // --- CONFIG ---
-        const BIT_MS = 60; // Speed of transmission
-        const RES = 32;    // Resolution
-
-        // --- NAVIGATION ---
-        function setView(v) {
-            document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
-            document.getElementById(v+'-view').classList.add('active');
+        const BIT_TIME = 400; // 400ms (Mechanical vibration takes time to stop)
+        const FREQ = 55;      // 55Hz (Resonant freq for most plastic chassis)
+        
+        // --- TABS ---
+        function setTab(t) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById(t+'-screen').classList.add('active');
             event.target.classList.add('active');
         }
 
-        // --- EDITOR LOGIC ---
-        const grid = document.getElementById('grid');
-        let pixels = new Array(RES * RES).fill(0); 
+        // --- TRANSMITTER (AUDIO) ---
+        let audioCtx;
+        let osc;
 
-        // Init Grid
-        for(let i=0; i<RES*RES; i++) {
-            const div = document.createElement('div');
-            div.className = 'pixel';
-            grid.appendChild(div);
+        function initAudio() {
+            if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if(audioCtx.state === 'suspended') audioCtx.resume();
         }
 
-        // Render from array
-        function renderGrid() {
-            pixels.forEach((p, i) => {
-                grid.children[i].className = p ? 'pixel on' : 'pixel';
-            });
-            updateStats();
+        function manualPulse(on) {
+            const btn = document.getElementById('vib-btn');
+            if(on) {
+                btn.classList.add('active');
+                startTone();
+            } else {
+                btn.classList.remove('active');
+                stopTone();
+            }
         }
 
-        // --- IMAGE UPLOAD ---
-        function handleImageUpload(input) {
-            const file = input.files[0];
-            if(!file) return;
-            const img = new Image();
-            img.onload = () => {
-                // Resize and Threshold
-                const c = document.createElement('canvas');
-                c.width = RES; c.height = RES;
-                const ctx = c.getContext('2d');
-                ctx.fillStyle = "#000"; ctx.fillRect(0,0,RES,RES);
-                // Draw image scaled to 32x32
-                ctx.drawImage(img, 0, 0, RES, RES);
-                const data = ctx.getImageData(0,0,RES,RES).data;
-                
-                // Convert to Monochrome
-                for(let i=0; i<RES*RES; i++) {
-                    const r = data[i*4];
-                    const g = data[i*4+1];
-                    const b = data[i*4+2];
-                    const luma = 0.299*r + 0.587*g + 0.114*b;
-                    pixels[i] = luma > 100 ? 1 : 0; // Threshold
-                }
-                renderGrid();
-            };
-            img.src = URL.createObjectURL(file);
+        function startTone() {
+            initAudio();
+            if(osc) stopTone();
+            osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            // SQUARE wave creates the most physical movement (jerk)
+            osc.type = 'square'; 
+            osc.frequency.value = FREQ;
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
         }
 
-        function clearGrid() { pixels.fill(0); renderGrid(); }
+        function stopTone() {
+            if(osc) {
+                osc.stop();
+                osc.disconnect();
+                osc = null;
+            }
+        }
 
-        // --- SPARSE MATRIX PROTOCOL ---
-        // Protocol: "Delta Cursor"
-        // We only tell the receiver where the WHITE pixels are relative to the last one.
-        // NIBBLES (4 bits):
-        // 0-14: Advance Cursor by (Value+1) and Draw White.
-        // 15:   Advance Cursor by 15 and Draw NOTHING (Skip).
-        function encodeSparse() {
+        async function transmitData() {
+            const text = document.getElementById('msg-input').value.toUpperCase();
+            if(!text) return;
+            
+            // Convert to Binary
             let bits = "";
-            let cursor = -1;
-            let whiteCount = 0;
-
-            // Find next white pixel
-            for(let i=0; i<pixels.length; i++) {
-                if(pixels[i] === 1) {
-                    let delta = i - cursor;
-                    
-                    // While distance is too big for one nibble (max 15 jump)
-                    while(delta > 15) {
-                        bits += "1111"; // Send '15' (Skip 15)
-                        delta -= 15;
-                    }
-
-                    // Now delta is 1-15.
-                    // We map 1->0000, 15->1110 (Value = Delta-1)
-                    // Wait, we need 0-14 mapping.
-                    // Delta 1 = Code 0. Delta 15 = Code 14.
-                    const code = (delta - 1).toString(2).padStart(4, "0");
-                    bits += code;
-
-                    cursor = i;
-                    whiteCount++;
-                }
+            for(let i=0; i<text.length; i++) {
+                bits += text.charCodeAt(i).toString(2).padStart(8, "0");
             }
-            
-            // End of transmission: Send a specific sequence or just stop?
-            // We'll rely on Pilot tone stopping.
-            return { bits, whiteCount };
-        }
 
-        function updateStats() {
-            const data = encodeSparse();
-            const time = Math.ceil((data.bits.length * BIT_MS) / 1000) + 2; // +2 for sync
-            document.getElementById('pixel-count').innerText = data.whiteCount + " White Px";
-            document.getElementById('compress-stat').innerText = "~" + time + "s";
-        }
+            // 1. HEADER (Wake up shake)
+            manualPulse(true); await wait(BIT_TIME);
+            manualPulse(false); await wait(BIT_TIME);
+            manualPulse(true); await wait(BIT_TIME);
+            manualPulse(false); await wait(BIT_TIME * 2);
 
-        // --- TRANSMITTER ---
-        const flashBox = document.getElementById('tx-flash');
-        
-        async function transmitImage() {
-            const { bits } = encodeSparse();
-            flashBox.className = 'active';
-            
-            // 1. PILOT (Solid White - Sync)
-            flashBox.style.background = '#FFF';
-            flashBox.innerText = "PILOT";
-            await wait(1500);
-
-            // 2. START EDGE (Black)
-            flashBox.style.background = '#000';
-            flashBox.innerText = "";
-            await wait(BIT_MS * 2);
-
-            // 3. DATA
+            // 2. DATA
             for(let i=0; i<bits.length; i++) {
-                flashBox.style.background = bits[i] === "1" ? "#FFF" : "#000";
-                await wait(BIT_MS);
+                const on = bits[i] === "1";
+                if(on) startTone();
+                else stopTone();
+                
+                // Visual feedback
+                const btn = document.getElementById('vib-btn');
+                if(on) btn.classList.add('active'); else btn.classList.remove('active');
+
+                await wait(BIT_TIME);
             }
 
-            flashBox.style.background = "#000";
-            flashBox.className = '';
+            stopTone();
+            document.getElementById('vib-btn').classList.remove('active');
         }
         const wait = ms => new Promise(r => setTimeout(r, ms));
 
 
-        // --- RECEIVER ---
+        // --- RECEIVER (ACCELEROMETER) ---
         let rxRunning = false;
-        const vid = document.getElementById('video');
-        const cvs = document.createElement('canvas');
-        const ctx = cvs.getContext('2d', { willReadFrequently: true });
+        let lastZ = 0;
+        let history = new Array(100).fill(0);
         
-        const rxCtx = document.getElementById('rx-canvas').getContext('2d');
-        const rxStat = document.getElementById('rx-status');
-        const gCtx = document.getElementById('graph').getContext('2d');
-
-        let history = [];
+        const canvas = document.getElementById('seismograph');
+        const ctx = canvas.getContext('2d');
+        
+        // Decoding Logic
         let state = "SEARCH";
+        let bitBuf = "";
         let nextSample = 0;
-        let nibbleBuf = "";
-        let cursor = -1;
+        let threshold = 0.5; // Sensitivity (Auto-adjusts)
 
-        async function startRx() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                vid.srcObject = stream;
-                vid.onloadedmetadata = () => vid.play();
-                document.getElementById('start-cam').style.display = 'none';
-                rxRunning = true;
-                
-                // Clear to Black (This fills the "empty spaces" automatically)
-                rxCtx.fillStyle = "#000";
-                rxCtx.fillRect(0,0,32,32);
-                
-                loop();
-            } catch(e) { alert(e); }
+        function startSensor() {
+            // iOS 13+ Permission Request
+            if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                DeviceMotionEvent.requestPermission()
+                    .then(response => {
+                        if (response === 'granted') initMotion();
+                        else alert('Permission denied');
+                    })
+                    .catch(console.error);
+            } else {
+                // Non-iOS or older devices
+                initMotion();
+            }
         }
 
-        function loop() {
+        function initMotion() {
+            window.addEventListener('devicemotion', handleMotion);
+            document.getElementById('sensor-btn').style.display = 'none';
+            rxRunning = true;
+            resizeCanvas();
+            drawLoop();
+        }
+
+        function handleMotion(event) {
+            // We only care about Z-axis (Up/Down vibration)
+            // We verify accelerationIncludingGravity to detect shake
+            const z = event.acceleration.z || event.accelerationIncludingGravity.z;
+            
+            // Calculate "Jerk" (Change in acceleration) to ignore gravity/tilt
+            const delta = Math.abs(z - lastZ);
+            lastZ = z;
+
+            // Push to history for graph
+            history.push(delta);
+            history.shift();
+            
+            // UI Update
+            document.getElementById('force-val').innerText = "FORCE: " + delta.toFixed(2);
+        }
+
+        function drawLoop() {
             if(!rxRunning) return;
+            requestAnimationFrame(drawLoop);
 
-            // 1. Luma
-            cvs.width=20; cvs.height=20;
-            ctx.drawImage(vid, vid.videoWidth/2-10, vid.videoHeight/2-10, 20, 20, 0, 0, 20, 20);
-            const d = ctx.getImageData(0,0,20,20).data;
-            let sum = 0;
-            for(let i=0; i<d.length; i+=4) sum += (d[i]+d[i+1]+d[i+2])/3;
-            const luma = sum / (d.length/4);
+            // 1. Draw Graph
+            ctx.fillStyle = "#000"; ctx.fillRect(0,0,canvas.width, canvas.height);
+            ctx.beginPath();
+            ctx.strokeStyle = "#ff7b72"; ctx.lineWidth = 2;
+            
+            const h = canvas.height;
+            // Scale factor: A delta of 2.0 is a HUGE shake
+            const scale = h / 2; 
 
-            // 2. Adaptive Threshold
-            history.push(luma);
-            if(history.length > 50) history.shift();
-            const min = Math.min(...history);
-            const max = Math.max(...history);
-            const thresh = (min + max) / 2;
-            const isHigh = luma > thresh;
+            for(let i=0; i<history.length; i++) {
+                const x = (i / history.length) * canvas.width;
+                const y = h - (history[i] * scale);
+                if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+            }
+            ctx.stroke();
+
+            // 2. Logic (Sample the average of the last 10 frames)
+            const recentAvg = history.slice(-10).reduce((a,b)=>a+b,0)/10;
+            const isShaking = recentAvg > 0.3; // 0.3 is a good baseline threshold
+
+            // Draw Threshold Line
+            const thY = h - (0.3 * scale);
+            ctx.beginPath(); ctx.strokeStyle = "#00f"; 
+            ctx.moveTo(0, thY); ctx.lineTo(canvas.width, thY); ctx.stroke();
 
             const now = Date.now();
 
             if(state === "SEARCH") {
-                rxStat.innerText = "Waiting for Pilot...";
-                // Lock Pilot
-                if(luma > 200 && (max-min) < 60) {
-                     // Wait for drop
-                }
-                // Check Drop
-                if(isHigh && (max-min) > 50) state = "PILOT";
-            }
-            else if(state === "PILOT") {
-                rxStat.innerText = "LOCKED";
-                rxStat.style.color = "#FFF";
-                if(!isHigh) {
+                // Look for the header (Sustained shake)
+                if(isShaking) {
+                    // Start logic
                     state = "READ";
-                    nextSample = now + (BIT_MS * 1.5); // Align to first bit center
-                    nibbleBuf = "";
-                    cursor = -1;
-                    rxCtx.fillStyle = "#222"; rxCtx.fillRect(0,0,32,32); // Reset
-                    rxStat.innerText = "RECEIVING...";
-                    rxStat.style.color = "#32D74B";
+                    nextSample = now + BIT_TIME * 1.5;
+                    bitBuf = "";
+                    document.getElementById('rx-msg').innerText = "RUMBLE DETECTED";
                 }
             }
-            else if(state === "READ") {
+            else if (state === "READ") {
                 if(now >= nextSample) {
-                    nextSample += BIT_MS;
-                    nibbleBuf += isHigh ? "1" : "0";
-
-                    if(nibbleBuf.length === 4) {
-                        processNibble(nibbleBuf);
-                        nibbleBuf = "";
+                    nextSample += BIT_TIME;
+                    bitBuf += isShaking ? "1" : "0";
+                    
+                    if(bitBuf.length === 8) {
+                        const char = String.fromCharCode(parseInt(bitBuf, 2));
+                        const disp = document.getElementById('rx-msg');
+                        if(disp.innerText.includes("RUMBLE")) disp.innerText = "";
+                        disp.innerText += char;
+                        bitBuf = "";
+                        
+                        // Vibration feedback on phone to confirm receipt
+                        if(navigator.vibrate) navigator.vibrate(50);
                     }
                 }
-                if(now > nextSample + 2000) {
-                    state = "SEARCH";
-                    rxStat.innerText = "COMPLETE";
-                    rxStat.style.color = "#888";
-                }
-            }
-
-            // Graph
-            gCtx.fillStyle="#222"; gCtx.fillRect(0,0,300,30);
-            const h=30; 
-            gCtx.fillStyle="#0f0"; gCtx.fillRect(150, h-(luma/255)*h, 4, 4);
-            gCtx.fillStyle="blue"; gCtx.fillRect(0, h-(thresh/255)*h, 300, 1);
-            
-            requestAnimationFrame(loop);
-        }
-
-        function processNibble(bits) {
-            const val = parseInt(bits, 2);
-            
-            if(val === 15) {
-                // SKIP Command: Just move cursor, draw nothing
-                cursor += 15;
-            } else {
-                // PAINT Command: Move (val+1), then draw
-                const jump = val + 1;
-                cursor += jump;
-                drawPixel(cursor);
+                if(now > nextSample + 3000) state = "SEARCH";
             }
         }
 
-        function drawPixel(idx) {
-            if(idx >= 1024) return;
-            const x = idx % 32;
-            const y = Math.floor(idx / 32);
-            rxCtx.fillStyle = "#FFF";
-            rxCtx.fillRect(x, y, 1, 1);
+        function resizeCanvas() {
+            canvas.width = document.getElementById('seismo-box').clientWidth;
+            canvas.height = document.getElementById('seismo-box').clientHeight;
         }
     </script>
 </body>
