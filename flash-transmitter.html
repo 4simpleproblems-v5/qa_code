@@ -2,323 +2,311 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Semaphore: Optical Link</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Semaphore: iPhone Edition</title>
     <style>
+        :root { --on: #ff0000; --off: #0a0000; --ui: #222; --text: #f5f5f5; }
         body {
             background-color: #000;
-            color: #ff3333;
+            color: var(--text);
             font-family: 'Courier New', monospace;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
             margin: 0;
             height: 100vh;
+            display: flex;
+            flex-direction: column;
             overflow: hidden;
+            -webkit-user-select: none; /* Prevent text selection on iOS */
         }
 
-        h1 { margin: 10px 0; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 2px; }
+        /* NAVIGATION */
+        .nav { display: flex; height: 50px; border-bottom: 1px solid #333; }
+        .nav-item {
+            flex: 1; display: flex; align-items: center; justify-content: center;
+            background: #111; cursor: pointer; font-weight: bold; border-right: 1px solid #333;
+        }
+        .nav-item.active { background: var(--on); color: #000; }
 
-        /* TAB SYSTEM */
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-        .tab-btn {
-            background: #220000;
-            border: 1px solid #ff3333;
-            color: #ff3333;
-            padding: 10px 20px;
-            cursor: pointer;
-            font-family: inherit;
-            font-weight: bold;
-        }
-        .tab-btn.active { background: #ff3333; color: #000; }
+        .screen { display: none; flex: 1; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+        .screen.active { display: flex; }
 
-        .view { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; }
-        .view.active { display: flex; }
-
-        /* TRANSMITTER UI */
-        #flash-box {
-            width: 100%;
-            flex-grow: 1;
-            background-color: #000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10rem;
-            font-weight: bold;
-            color: #000; /* Text hidden unless needed */
+        /* TRANSMITTER */
+        #tx-target {
+            width: 250px; height: 250px;
+            background: var(--off);
+            border: 4px solid #333;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 5rem; font-weight: 900; color: #000;
         }
-        .tx-controls {
-            padding: 20px;
-            width: 100%;
-            max-width: 400px;
-            display: flex;
-            gap: 10px;
+        .input-group { width: 90%; max-width: 400px; display: flex; gap: 10px; }
+        input {
+            flex: 1; background: #222; border: 1px solid #444; color: #fff;
+            padding: 15px; font-family: monospace; border-radius: 8px;
+            -webkit-appearance: none; /* iOS styling fix */
         }
-        input[type="text"] {
-            background: #110000;
-            border: 1px solid #550000;
-            color: #ff3333;
-            padding: 10px;
-            flex-grow: 1;
-            font-family: inherit;
-            text-transform: uppercase;
-        }
-        button {
-            background: #ff3333;
-            color: #000;
-            border: none;
-            padding: 10px 20px;
-            font-weight: bold;
-            cursor: pointer;
+        button.action-btn {
+            background: var(--on); color: #000; border: none; font-weight: bold;
+            padding: 0 20px; border-radius: 8px; cursor: pointer;
         }
 
-        /* RECEIVER UI */
-        #cam-container {
+        /* RECEIVER */
+        #cam-wrapper {
             position: relative;
-            width: 300px;
-            height: 225px;
-            border: 2px solid #330000;
-            background: #111;
-            margin-bottom: 10px;
+            width: 320px; height: 240px;
+            background: #111; border: 2px solid #444;
+            overflow: hidden; margin-bottom: 10px;
+            border-radius: 10px;
         }
         video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            opacity: 0.6; /* Dim video so graph pops */
+            width: 100%; height: 100%; object-fit: cover;
+            /* iOS Safari High Contrast Fix */
+            filter: contrast(1.2) brightness(1.1); 
         }
-        /* The graph overlay */
-        #scope {
-            width: 100%;
-            height: 100px;
-            background: #110000;
-            border-top: 1px solid #550000;
-            border-bottom: 1px solid #550000;
+        
+        #reticle {
+            position: absolute; top: 50%; left: 50%;
+            width: 50px; height: 50px;
+            transform: translate(-50%, -50%);
+            border: 2px solid #0f0;
+            /* Box shadow creates the dark overlay */
+            box-shadow: 0 0 0 1000px rgba(0,0,0,0.85); 
+            z-index: 10;
         }
-        #rx-log {
-            font-size: 1.5rem;
-            margin-top: 10px;
-            min-height: 1.5rem;
-            color: #fff;
-            text-shadow: 0 0 5px #ff3333;
-        }
-        #threshold-line {
-            position: absolute;
-            width: 100%;
-            height: 1px;
-            background: #00ff00;
-            opacity: 0.5;
-            top: 50%;
-            pointer-events: none;
-        }
-        .info { font-size: 0.7rem; color: #666; margin-top: 5px; }
 
+        #graph { width: 320px; height: 60px; background: #111; border: 1px solid #333; }
+        
+        #rx-output {
+            margin-top: 15px; font-size: 1.2rem; min-height: 1.5rem;
+            color: #0f0; text-shadow: 0 0 5px #0f0;
+            max-width: 90%; word-break: break-all; text-align: center;
+        }
+
+        #link-btn {
+            display: none; margin-top: 20px;
+            background: #007AFF; color: white; padding: 15px 30px;
+            border-radius: 30px; text-decoration: none; font-weight: bold;
+            box-shadow: 0 0 15px #007AFF;
+        }
+
+        .status-pill {
+            font-size: 0.8rem; color: #666; margin-top: 5px;
+            background: #111; padding: 4px 10px; border-radius: 4px;
+        }
     </style>
 </head>
 <body>
 
-    <h1>Project Semaphore</h1>
-    
-    <div class="tabs">
-        <div class="tab-btn active" onclick="switchTab('tx')">Transmitter</div>
-        <div class="tab-btn" onclick="switchTab('rx')">Receiver</div>
+    <div class="nav">
+        <div class="nav-item active" onclick="setMode('tx')">TRANSMIT</div>
+        <div class="nav-item" onclick="setMode('rx')">RECEIVE</div>
     </div>
 
-    <div id="view-tx" class="view active">
-        <div id="flash-box"></div>
-        <div class="tx-controls">
-            <input type="text" id="msgInput" placeholder="HELLO" maxlength="10">
-            <button onclick="transmit()">SEND</button>
+    <div id="tx-screen" class="screen active">
+        <div class="status-pill">Brightness MUST be 100%</div>
+        <div id="tx-target"></div>
+        
+        <div class="input-group">
+            <input type="text" id="tx-input" placeholder="https://..." value="https://youtube.com">
+            <button class="action-btn" onclick="transmit()">SEND</button>
         </div>
-        <div class="info">Set screen brightness to MAX for best range.</div>
     </div>
 
-    <div id="view-rx" class="view">
-        <div id="cam-container">
+    <div id="rx-screen" class="screen">
+        <button id="start-cam-btn" class="action-btn" style="margin-bottom:20px;" onclick="startRx()">START BACK CAMERA</button>
+        
+        <div id="cam-wrapper">
             <video id="video" autoplay playsinline muted></video>
-            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); color:rgba(0,255,0,0.5); font-size:2rem;">+</div>
+            <div id="reticle"></div>
         </div>
         
-        <canvas id="scope" width="300" height="100"></canvas>
-        <div class="info">Align crosshair with flashing screen. <br>Green line = Trigger Threshold</div>
+        <canvas id="graph" width="320" height="60"></canvas>
+        <div id="rx-output">Ready</div>
         
-        <div style="margin-top: 20px; color:#888;">DECODED:</div>
-        <div id="rx-log">Waiting...</div>
+        <a id="link-btn" href="#" target="_blank">OPEN LINK ↗</a>
         
-        <button onclick="startCamera()" style="margin-top:20px; width:200px;">Start Camera</button>
+        <div class="status-pill">Hold 2 inches from screen</div>
     </div>
 
     <script>
         // --- CONFIG ---
-        // Slower speed = More reliable for webcams (which run at 30-60fps)
-        const BIT_DURATION = 150; // ms per bit (approx 6 bits per second)
-        
-        // --- TABS ---
-        function switchTab(mode) {
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('view-' + mode).classList.add('active');
-            event.target.classList.add('active');
+        const BIT_TIME = 80; // ~12 bits/sec
+
+        // --- NAVIGATION ---
+        function setMode(mode) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById(mode + '-screen').classList.add('active');
+            document.querySelectorAll('.nav-item')[mode === 'tx' ? 0 : 1].classList.add('active');
         }
 
         // --- TRANSMITTER ---
-        const flashBox = document.getElementById('flash-box');
+        const target = document.getElementById('tx-target');
         
         async function transmit() {
-            const text = document.getElementById('msgInput').value.toUpperCase();
-            if(!text) return;
-
-            // Convert text to binary string
-            let binaryStream = "";
+            const rawText = document.getElementById('tx-input').value;
+            const text = "\x02" + rawText + "\x03";
+            
+            // Header: Rapid pulses to wake up auto-exposure
+            for(let i=0; i<6; i++) {
+                flash(true); await wait(BIT_TIME);
+                flash(false); await wait(BIT_TIME);
+            }
+            
+            // Data
             for (let i = 0; i < text.length; i++) {
-                // Get ASCII binary, pad to 8 bits
-                let bin = text.charCodeAt(i).toString(2).padStart(8, "0");
-                // Add UART framing: Start(1) + Data + Stop(0)
-                // Note: Usually UART Start is 0 and Stop is 1. 
-                // Since our "Idle" is Black (0), we will invert this logic for optics.
-                // Idle: Black (0)
-                // Start Bit: Red (1) (Wakes up receiver)
-                // Data: ...
-                // Stop Bit: Black (0) (Returns to idle)
-                binaryStream += "1" + bin + "0"; 
-            }
-
-            // Play the stream
-            for (let i = 0; i < binaryStream.length; i++) {
-                const bit = binaryStream[i];
-                setColor(bit === "1");
-                await sleep(BIT_DURATION);
-            }
-            
-            // Return to black
-            setColor(false);
-        }
-
-        function setColor(isRed) {
-            flashBox.style.backgroundColor = isRed ? "#ff0000" : "#000000";
-        }
-
-        const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-
-        // --- RECEIVER ---
-        const video = document.getElementById('video');
-        const canvas = document.createElement('canvas'); // hidden canvas to read pixels
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        
-        const scopeCanvas = document.getElementById('scope');
-        const scopeCtx = scopeCanvas.getContext('2d');
-        const rxLog = document.getElementById('rx-log');
-
-        let isScanning = false;
-        let brightnessHistory = new Array(300).fill(0);
-        let threshold = 50; // Dynamic threshold based on average
-
-        async function startCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "environment", frameRate: { ideal: 30 } } 
-                });
-                video.srcObject = stream;
-                isScanning = true;
-                requestAnimationFrame(scanLoop);
-                document.querySelector('#view-rx button').style.display = 'none';
-                rxLog.innerText = "";
-            } catch (err) {
-                alert("Camera error: " + err.message);
-            }
-        }
-
-        // UART DECODER STATE MACHINE
-        let rxState = "IDLE";
-        let bitBuffer = "";
-        let stateTimer = 0;
-
-        function scanLoop() {
-            if (!isScanning) return;
-
-            // 1. READ BRIGHTNESS
-            // Draw center of video to canvas
-            canvas.width = 50; canvas.height = 50;
-            // Draw only the center crop
-            ctx.drawImage(video, video.videoWidth/2 - 25, video.videoHeight/2 - 25, 50, 50, 0, 0, 50, 50);
-            
-            const frame = ctx.getImageData(0, 0, 50, 50);
-            let total = 0;
-            // Calculate average brightness (Red channel heavy)
-            for (let i = 0; i < frame.data.length; i += 4) {
-                total += frame.data[i]; // Red channel
-            }
-            const brightness = total / (frame.data.length / 4);
-
-            // 2. DRAW SCOPE (Visual Debugger)
-            brightnessHistory.push(brightness);
-            brightnessHistory.shift();
-            drawScope();
-
-            // 3. DETECT HIGH/LOW
-            // Auto-exposure makes absolute numbers unreliable. 
-            // We use a rolling dynamic threshold.
-            const avgLevel = brightnessHistory.reduce((a,b)=>a+b) / brightnessHistory.length;
-            const dynamicThresh = avgLevel + 10; // Must be significantly above average
-            const isHigh = brightness > dynamicThresh;
-
-            // 4. DECODE LOGIC (Sampling)
-            const now = Date.now();
-            
-            if (rxState === "IDLE") {
-                if (isHigh) {
-                    // Start Bit Detected!
-                    rxState = "READING";
-                    bitBuffer = "";
-                    // Wait 1.5 bit durations to sample the CENTER of the first data bit
-                    stateTimer = now + (BIT_DURATION * 1.5); 
+                const charCode = text.charCodeAt(i);
+                for (let bit = 7; bit >= 0; bit--) {
+                    flash((charCode >> bit) & 1);
+                    await wait(BIT_TIME);
                 }
-            } else if (rxState === "READING") {
-                if (now >= stateTimer) {
-                    // Sample the bit
-                    bitBuffer += isHigh ? "1" : "0";
-                    
-                    // Schedule next sample
-                    stateTimer += BIT_DURATION;
+            }
+            flash(false);
+        }
 
-                    // If we have 8 bits, decode char
-                    if (bitBuffer.length === 8) {
-                        const charCode = parseInt(bitBuffer, 2);
-                        const char = String.fromCharCode(charCode);
-                        rxLog.innerText += char;
+        function flash(on) { target.style.backgroundColor = on ? "var(--on)" : "var(--off)"; }
+        const wait = ms => new Promise(r => setTimeout(r, ms));
+
+
+        // --- RECEIVER (IOS FIX) ---
+        let rxRunning = false;
+        const video = document.getElementById('video');
+        const cvs = document.createElement('canvas');
+        const ctx = cvs.getContext('2d', { willReadFrequently: true });
+        
+        const gCvs = document.getElementById('graph');
+        const gCtx = gCvs.getContext('2d');
+        const output = document.getElementById('rx-output');
+        const linkBtn = document.getElementById('link-btn');
+
+        async function startRx() {
+            try {
+                // IOS FIX: Simple constraints work best on iPhone SE
+                // "environment" forces the back camera.
+                const constraints = { 
+                    audio: false,
+                    video: { facingMode: "environment" } 
+                };
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                
+                // IOS FIX: Explicit play call is sometimes needed
+                video.onloadedmetadata = () => {
+                    video.play();
+                };
+
+                document.getElementById('start-cam-btn').style.display = 'none';
+                rxRunning = true;
+                processLoop();
+            } catch(e) { 
+                alert("Camera Error: " + e.message + "\nMake sure you allowed camera access in Safari settings."); 
+            }
+        }
+
+        // --- DECODER LOGIC ---
+        let lumaHistory = new Array(320).fill(0);
+        let bitBuffer = 0;
+        let bitCount = 0;
+        let msgBuffer = "";
+        let state = "SEARCH";
+        let lastBitTime = 0;
+
+        function processLoop() {
+            if(!rxRunning) return;
+            
+            // 1. SAMPLE (Small center crop)
+            cvs.width = 20; cvs.height = 20;
+            // Draw center of video
+            ctx.drawImage(video, video.videoWidth/2 - 10, video.videoHeight/2 - 10, 20, 20, 0, 0, 20, 20);
+            const frame = ctx.getImageData(0,0,20,20).data;
+            
+            let sum = 0;
+            for(let i=0; i<frame.length; i+=4) sum += frame[i]; // Read Red Channel
+            const val = sum / (frame.length/4);
+
+            // 2. GRAPH & THRESHOLD
+            lumaHistory.push(val);
+            lumaHistory.shift();
+            drawGraph();
+
+            const localAvg = lumaHistory.slice(-30).reduce((a,b)=>a+b,0)/30;
+            // Adaptive Threshold: Signal must be 20 units brighter than the 1-second average
+            const isHigh = val > (localAvg + 20); 
+
+            const now = Date.now();
+
+            // 3. STATE MACHINE
+            if (state === "SEARCH") {
+                if (isHigh) {
+                    state = "READ";
+                    // Sync: Assume we caught the rising edge, wait 0.5 bits to get to center
+                    lastBitTime = now + (BIT_TIME/2);
+                    msgBuffer = "";
+                    bitBuffer = 0;
+                    bitCount = 0;
+                }
+            }
+            else if (state === "READ") {
+                if (now >= lastBitTime + BIT_TIME) {
+                    lastBitTime += BIT_TIME;
+                    
+                    bitBuffer = (bitBuffer << 1) | (isHigh ? 1 : 0);
+                    bitCount++;
+
+                    if (bitCount === 8) {
+                        const char = String.fromCharCode(bitBuffer);
                         
-                        // Look for Stop Bit (should be next)
-                        rxState = "STOP"; 
+                        if (char === "\x02") {
+                            msgBuffer = "";
+                            output.innerText = "Receiving...";
+                            output.style.color = "#FFD60A";
+                        } 
+                        else if (char === "\x03") {
+                            finishReceive();
+                        } 
+                        else {
+                            msgBuffer += char;
+                            output.innerText = msgBuffer;
+                        }
+                        bitBuffer = 0; bitCount = 0;
                     }
                 }
-            } else if (rxState === "STOP") {
-                if (now >= stateTimer) {
-                    // Stop bit passed, go back to idle
-                    rxState = "IDLE";
+                
+                // Timeout (2 sec silence)
+                if (now > lastBitTime + 2000) {
+                    state = "SEARCH";
+                    output.innerText = "Signal Lost";
+                    output.style.color = "#FF453A";
                 }
             }
-
-            requestAnimationFrame(scanLoop);
+            requestAnimationFrame(processLoop);
         }
 
-        function drawScope() {
-            scopeCtx.fillStyle = "#110000";
-            scopeCtx.fillRect(0, 0, 300, 100);
+        function finishReceive() {
+            state = "SEARCH";
+            output.innerText = msgBuffer;
+            output.style.color = "#0f0";
             
-            scopeCtx.beginPath();
-            scopeCtx.strokeStyle = "#ff3333";
-            scopeCtx.lineWidth = 2;
-
-            const max = 255;
-            for (let i = 0; i < 300; i++) {
-                const y = 100 - (brightnessHistory[i] / max * 100);
-                if (i===0) scopeCtx.moveTo(i, y);
-                else scopeCtx.lineTo(i, y);
+            if (msgBuffer.startsWith("http")) {
+                linkBtn.href = msgBuffer;
+                linkBtn.style.display = "inline-block";
+                linkBtn.innerText = "OPEN: " + msgBuffer.substring(0, 15) + "...";
             }
-            scopeCtx.stroke();
         }
 
+        function drawGraph() {
+            gCtx.fillStyle = "#000";
+            gCtx.fillRect(0,0,320,60);
+            gCtx.beginPath();
+            gCtx.strokeStyle = "rgba(255, 0, 0, 0.8)";
+            gCtx.lineWidth = 2;
+            for(let i=0; i<320; i++) {
+                const y = 60 - (lumaHistory[i] / 255 * 60);
+                if(i==0) gCtx.moveTo(i,y); else gCtx.lineTo(i,y);
+            }
+            gCtx.stroke();
+        }
     </script>
 </body>
 </html>
