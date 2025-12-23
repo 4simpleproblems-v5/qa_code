@@ -3,16 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project QA Code (Optimized)</title>
+    <title>Project QA: Robust</title>
     <style>
-        :root { --primary: #0A84FF; --bg: #121212; --text: #E0E0E0; --card: #1E1E1E; }
+        :root { --primary: #30D158; --bg: #000000; --text: #fff; --card: #1c1c1e; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, sans-serif;
             background-color: var(--bg);
             color: var(--text);
             text-align: center;
             padding: 20px;
-            margin: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -21,171 +20,154 @@
         }
 
         h1 { margin-bottom: 5px; font-size: 1.5rem; color: var(--primary); }
-        p { margin-top: 0; color: #888; font-size: 0.9rem; }
+        p { margin-top: 0; color: #666; font-size: 0.9rem; }
 
         .container {
             background: var(--card);
             padding: 20px;
             border-radius: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            border: 1px solid #333;
             max-width: 400px;
             width: 100%;
             margin-bottom: 20px;
-            border: 1px solid #333;
         }
 
         .section-title {
             text-transform: uppercase;
-            letter-spacing: 1px;
             font-size: 0.75rem;
-            color: #666;
-            margin-bottom: 15px;
+            color: #888;
             border-bottom: 1px solid #333;
+            margin-bottom: 15px;
             padding-bottom: 5px;
         }
 
-        /* Controls */
-        input[type="color"] { border: none; width: 80px; height: 50px; cursor: pointer; background: none; }
+        input[type="color"] { border: none; width: 100%; height: 60px; cursor: pointer; background: none; }
         
-        .vol-control { margin: 15px 0; display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; color: #aaa; }
+        .slider-container { display: flex; align-items: center; justify-content: space-between; margin: 15px 0; font-size: 0.8rem; color: #aaa; }
         input[type="range"] { flex-grow: 1; margin: 0 10px; accent-color: var(--primary); }
 
         button {
-            display: block;
-            width: 100%;
-            padding: 15px;
-            margin-top: 10px;
-            font-size: 1rem;
-            font-weight: bold;
-            color: white;
-            background-color: var(--primary);
-            border: none;
-            border-radius: 12px;
+            width: 100%; padding: 15px; margin-top: 10px;
+            font-size: 1rem; font-weight: bold; color: #000;
+            background-color: var(--primary); border: none; border-radius: 12px;
             cursor: pointer;
-            transition: opacity 0.2s;
         }
-        button:disabled { background-color: #333; color: #777; cursor: not-allowed; }
+        button:disabled { background-color: #333; color: #777; }
 
         #rx-status {
-            font-family: monospace;
-            background: #000;
-            padding: 10px;
-            border-radius: 8px;
-            margin-top: 10px;
-            font-size: 0.85rem;
-            color: #00FF00;
-            min-height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            font-family: monospace; padding: 10px;
+            margin-top: 10px; font-size: 0.9rem; color: var(--primary);
+            min-height: 20px;
+        }
+
+        /* Signal Strength Meter */
+        #signal-bar-bg {
+            width: 100%; height: 10px; background: #333;
+            border-radius: 5px; margin-top: 10px; overflow: hidden;
+        }
+        #signal-bar-fill {
+            width: 0%; height: 100%; background: var(--primary);
+            transition: width 0.1s;
         }
     </style>
 </head>
 <body>
 
-    <h1>Project QA Code v2</h1>
-    <p>High-Fidelity Ultrasonic Transfer</p>
+    <h1>Project QA: Robust</h1>
+    <p>Median Filtered Ultrasonic Data</p>
 
     <div class="container">
         <div class="section-title">Transmitter</div>
-        <input type="color" id="colorPicker" value="#FFFFFF">
-        
-        <div class="vol-control">
+        <input type="color" id="colorPicker" value="#808000">
+        <div class="slider-container">
             <span>Vol:</span>
-            <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.2">
-            <span id="volLabel">20%</span>
+            <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.5">
         </div>
-
         <button id="broadcastBtn">Broadcast Data</button>
     </div>
 
     <div class="container">
         <div class="section-title">Receiver</div>
         <button id="listenBtn">Start Receiver</button>
-        <div id="rx-status">Waiting to start...</div>
+        <div id="rx-status">Idle</div>
+        
+        <div style="font-size: 0.7rem; color: #666; margin-top:10px; text-align:left;">SIGNAL STRENGTH:</div>
+        <div id="signal-bar-bg"><div id="signal-bar-fill"></div></div>
     </div>
 
     <script>
         // --- CONFIGURATION ---
-        // Range: 17.2kHz -> 19.2kHz (2kHz Bandwidth)
-        // This is slightly lower than before to ensure the iPhone mic picks it up clearly,
-        // but high enough to be mostly inaudible.
-        const FREQ_MIN = 17200; 
-        const FREQ_MAX = 19200; 
-        const FREQ_SYNC = 16500; // Distinct header tone
+        // 17.5k - 19.5k (Safer range for distance)
+        const FREQ_MIN = 17500; 
+        const FREQ_MAX = 19500; 
+        const FREQ_SYNC = 16500;
         
-        // Timings (Slightly slower for robustness)
-        const T_SYNC = 0.8;
-        const T_DATA = 1.0; 
-        const T_GAP = 0.2; 
+        // SLOWER TIMING = HIGHER ACCURACY
+        const T_SYNC = 1.0;  // 1 second sync
+        const T_DATA = 1.2;  // 1.2 seconds per color
+        const T_GAP = 0.3;   // Silence gap
 
-        // --- UTILITIES ---
-        const valToFreq = (val) => FREQ_MIN + (val * ((FREQ_MAX - FREQ_MIN) / 255));
+        // --- MATH HELPERS ---
+        const valToFreq = (v) => FREQ_MIN + (v * ((FREQ_MAX - FREQ_MIN) / 255));
         
-        const freqToVal = (freq) => {
-            if (freq < FREQ_MIN) freq = FREQ_MIN;
-            if (freq > FREQ_MAX) freq = FREQ_MAX;
-            return Math.round((freq - FREQ_MIN) * (255 / (FREQ_MAX - FREQ_MIN)));
+        const freqToVal = (f) => {
+            if (f < FREQ_MIN) f = FREQ_MIN;
+            if (f > FREQ_MAX) f = FREQ_MAX;
+            return Math.round((f - FREQ_MIN) * (255 / (FREQ_MAX - FREQ_MIN)));
         };
 
         const hexToRgb = (hex) => {
-            const bi = parseInt(hex.substring(1), 16);
-            return [(bi >> 16) & 255, (bi >> 8) & 255, bi & 255];
+            const n = parseInt(hex.substring(1), 16);
+            return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
         };
 
         // --- TRANSMITTER ---
         let audioCtxTx;
         const btnTx = document.getElementById('broadcastBtn');
-        const volSlider = document.getElementById('volumeSlider');
-        const volLabel = document.getElementById('volLabel');
-
-        volSlider.addEventListener('input', (e) => volLabel.innerText = Math.round(e.target.value * 100) + "%");
-
+        
         btnTx.addEventListener('click', () => {
             if (!audioCtxTx) audioCtxTx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtxTx.state === 'suspended') audioCtxTx.resume();
 
             const rgb = hexToRgb(document.getElementById('colorPicker').value);
-            const vol = parseFloat(volSlider.value);
+            const vol = parseFloat(document.getElementById('volumeSlider').value);
             
             btnTx.disabled = true;
-            btnTx.innerText = "Sending...";
-
+            btnTx.innerText = "Transmitting...";
+            
             const t0 = audioCtxTx.currentTime + 0.1;
-            
-            // Schedule Tones
-            // 1. Sync
+
+            // 1. Sync Tone
             playTone(FREQ_SYNC, t0, T_SYNC, vol);
-            
-            // 2. Data (R, G, B)
-            let curTime = t0 + T_SYNC + T_GAP;
-            rgb.forEach((val, i) => {
-                playTone(valToFreq(val), curTime, T_DATA, vol);
-                curTime += T_DATA + T_GAP;
+
+            // 2. Data Tones
+            let cur = t0 + T_SYNC + T_GAP;
+            rgb.forEach(val => {
+                playTone(valToFreq(val), cur, T_DATA, vol);
+                cur += T_DATA + T_GAP;
             });
 
-            // Reset UI
             setTimeout(() => {
                 btnTx.disabled = false;
                 btnTx.innerText = "Broadcast Data";
-            }, (curTime - t0) * 1000 + 200);
+            }, (cur - t0) * 1000 + 200);
         });
 
-        function playTone(freq, t, dur, vol) {
+        function playTone(f, t, d, v) {
             const osc = audioCtxTx.createOscillator();
             const gain = audioCtxTx.createGain();
-            osc.frequency.value = freq;
+            osc.frequency.value = f;
             osc.type = 'sine';
             
-            // Ramp gain to avoid "pop" sounds
+            // Soft envelope
             gain.gain.setValueAtTime(0, t);
-            gain.gain.linearRampToValueAtTime(vol, t + 0.1);
-            gain.gain.setValueAtTime(vol, t + dur - 0.1);
-            gain.gain.linearRampToValueAtTime(0, t + dur);
+            gain.gain.linearRampToValueAtTime(v, t + 0.1);
+            gain.gain.setValueAtTime(v, t + d - 0.1);
+            gain.gain.linearRampToValueAtTime(0, t + d);
 
             osc.connect(gain).connect(audioCtxTx.destination);
             osc.start(t);
-            osc.stop(t + dur);
+            osc.stop(t + d);
         }
 
         // --- RECEIVER ---
@@ -193,139 +175,135 @@
         let isRunning = false;
         let rxState = 'IDLE'; 
         const status = document.getElementById('rx-status');
-        const btnRx = document.getElementById('listenBtn');
+        const bar = document.getElementById('signal-bar-fill');
 
-        btnRx.addEventListener('click', async () => {
+        document.getElementById('listenBtn').addEventListener('click', async function() {
             try {
                 audioCtxRx = new (window.AudioContext || window.webkitAudioContext)();
                 analyser = audioCtxRx.createAnalyser();
-                // Higher FFT size = Better frequency resolution (Essential for this range)
-                analyser.fftSize = 8192; 
-                analyser.smoothingTimeConstant = 0; // Instant reactions
+                analyser.fftSize = 4096; // 4096 is safer for mobile CPU than 8192
+                analyser.smoothingTimeConstant = 0.2;
 
-                // Disable iPhone audio processing filters
                 const stream = await navigator.mediaDevices.getUserMedia({
                     audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
                 });
-                
                 mic = audioCtxRx.createMediaStreamSource(stream);
                 mic.connect(analyser);
                 
                 isRunning = true;
-                btnRx.style.display = 'none';
+                this.style.display = 'none';
                 status.innerText = "Listening...";
                 loop();
             } catch(e) { alert(e.message); }
         });
 
         function getDominantFreq() {
-            const bufferLen = analyser.frequencyBinCount;
-            const data = new Uint8Array(bufferLen);
+            const len = analyser.frequencyBinCount;
+            const data = new Uint8Array(len);
             analyser.getByteFrequencyData(data);
 
             let maxVal = 0; 
             let maxIdx = 0;
-            // Only scan relevant high-frequency bins to save CPU/Errors
-            // 16000Hz approx bin index = 16000 / (44100/8192) ~= 2972
+            
+            // Only scan 15k+ range
             const startBin = Math.floor(15000 / (audioCtxRx.sampleRate / analyser.fftSize));
             
-            for(let i = startBin; i < bufferLen; i++) {
+            for(let i = startBin; i < len; i++) {
                 if(data[i] > maxVal) {
                     maxVal = data[i];
                     maxIdx = i;
                 }
             }
 
-            if(maxVal < 30) return 0; // Silence threshold
+            // Update UI Bar
+            const percent = Math.min(100, (maxVal / 255) * 100);
+            bar.style.width = percent + "%";
+            bar.style.backgroundColor = percent > 50 ? "#30D158" : "#FF453A";
+
+            if(maxVal < 40) return 0; // Noise gate
             return maxIdx * (audioCtxRx.sampleRate / analyser.fftSize);
         }
 
         function loop() {
             if(!isRunning) return;
             requestAnimationFrame(loop);
-
             const freq = getDominantFreq();
-            
+
             if(rxState === 'IDLE') {
-                // Check for Sync Tone (16.5k +/- 150Hz)
+                // Sync Detection
                 if(Math.abs(freq - FREQ_SYNC) < 150) {
                     rxState = 'SYNCED';
-                    status.innerText = "Sync Detected! Decoding...";
-                    startSamplingSequence();
+                    status.innerText = "Sync Detected...";
+                    status.style.color = "#FFD60A";
+                    
+                    // Timing: Wait until we are deep into the first data tone
+                    // Sync(1.0) + Gap(0.3) = 1.3s start
+                    // Sample center = 1.3s + 0.6s = 1.9s delay
+                    
+                    let startDelay = (T_SYNC + T_GAP + (T_DATA/2)) * 1000;
+                    let step = (T_DATA + T_GAP) * 1000;
+
+                    let finalColors = [0,0,0];
+
+                    setTimeout(() => sampleBurst(0, finalColors), startDelay);
+                    setTimeout(() => sampleBurst(1, finalColors), startDelay + step);
+                    setTimeout(() => sampleBurst(2, finalColors), startDelay + step*2);
                 }
             }
         }
 
-        function startSamplingSequence() {
-            const colors = [];
-            // We need to sample roughly in the MIDDLE of each tone pulse.
-            // Sync(0.8) + Gap(0.2) + Half_Tone(0.5) = 1.5s delay for first read center
-            
-            let delay = (T_SYNC + T_GAP + (T_DATA/2)) * 1000;
-            const interval = (T_DATA + T_GAP) * 1000;
-
-            // Schedule 3 samplers
-            setTimeout(() => sampleBurst(0, colors), delay);
-            setTimeout(() => sampleBurst(1, colors), delay + interval);
-            setTimeout(() => sampleBurst(2, colors), delay + interval * 2);
-        }
-
-        // Takes multiple samples over 200ms and averages them for accuracy
-        function sampleBurst(index, resultArr) {
-            let samples = [];
+        // --- MEDIAN FILTER SAMPLER ---
+        // Takes 7 readings, sorts them, picks the middle one. 
+        // This ignores 0s (misses) and crazy outliers.
+        function sampleBurst(idx, results) {
+            let readings = [];
             let count = 0;
-            const labels = ['Red', 'Green', 'Blue'];
+            const labels = ["Red", "Green", "Blue"];
+            status.innerText = `Reading ${labels[idx]}...`;
             
-            status.innerText = `Sampling ${labels[index]}...`;
-
-            // Rapid fire 5 samples every 40ms
-            const burstInterval = setInterval(() => {
-                const f = getDominantFreq();
-                if(f > FREQ_MIN - 200 && f < FREQ_MAX + 200) {
-                    samples.push(f);
-                }
+            // Take 7 samples over ~300ms
+            let interval = setInterval(() => {
+                let f = getDominantFreq();
+                if (f > 0) readings.push(f); // Only push non-silence
                 count++;
-                
-                if(count >= 5) {
-                    clearInterval(burstInterval);
-                    processBurst(samples, index, resultArr);
+
+                if(count >= 7) {
+                    clearInterval(interval);
+                    
+                    if (readings.length === 0) {
+                        results[idx] = 0; // Pure silence = 0
+                    } else {
+                        // Median Filter Sort
+                        readings.sort((a,b) => a - b);
+                        let mid = readings[Math.floor(readings.length/2)];
+                        results[idx] = freqToVal(mid);
+                    }
+
+                    if(idx === 2) finish(results);
                 }
-            }, 40);
-        }
-
-        function processBurst(samples, index, resultArr) {
-            if(samples.length === 0) {
-                // If we missed it (silence), assume 0 or repeat previous? Assume 0.
-                resultArr[index] = 0;
-            } else {
-                // Average the samples
-                const avgFreq = samples.reduce((a,b)=>a+b, 0) / samples.length;
-                resultArr[index] = freqToVal(avgFreq);
-            }
-
-            // If we have all 3
-            if(index === 2) {
-                finish(resultArr);
-            }
+            }, 50);
         }
 
         function finish(rgb) {
-            const [r,g,b] = rgb;
-            const col = `rgb(${r},${g},${b})`;
+            let [r,g,b] = rgb;
+            let col = `rgb(${r},${g},${b})`;
             
             document.body.style.backgroundColor = col;
             
-            // Contrast text
-            const lum = 0.2126*r + 0.7152*g + 0.0722*b;
-            document.body.style.color = lum > 128 ? '#000' : '#FFF';
-            
+            // Text color logic
+            let lum = (0.299*r + 0.587*g + 0.114*b);
+            let txtCol = lum > 128 ? '#000' : '#fff';
+            document.body.style.color = txtCol;
+            status.style.color = txtCol;
             status.innerText = `Received: ${col}`;
-            status.style.color = lum > 128 ? '#000' : '#00FF00';
 
             setTimeout(() => {
                 rxState = 'IDLE';
-                status.innerText = "Ready for next...";
-            }, 1000);
+                status.innerText = "Idle";
+                document.body.style.backgroundColor = "var(--bg)";
+                document.body.style.color = "var(--text)";
+                status.style.color = "var(--primary)";
+            }, 3000);
         }
     </script>
 </body>
