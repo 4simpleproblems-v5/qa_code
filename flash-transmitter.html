@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Project Mag-Net</title>
+    <title>Mag-Net v2: Robust</title>
     <style>
-        :root { --bg: #00111f; --line: #00d2ff; --text: #bfefff; }
+        :root { --bg: #000; --on: #ff00ff; --off: #222; --text: #fff; }
         body {
             background-color: var(--bg); color: var(--text);
             font-family: 'Courier New', monospace; margin: 0;
@@ -13,92 +13,92 @@
             overflow: hidden; -webkit-user-select: none;
         }
 
-        /* NAVIGATION */
-        .nav { display: flex; height: 60px; border-bottom: 1px solid #004455; }
+        /* NAV */
+        .nav { display: flex; height: 60px; border-bottom: 1px solid #333; }
         .nav-item {
             flex: 1; display: flex; align-items: center; justify-content: center;
-            background: #001a2e; cursor: pointer; font-weight: bold; 
-            border-right: 1px solid #004455; color: #447788; transition: 0.2s;
+            background: #111; cursor: pointer; font-weight: bold; border-right: 1px solid #333; color: #666;
         }
-        .nav-item.active { background: #002b4d; color: var(--line); border-bottom: 3px solid var(--line); }
+        .nav-item.active { background: #220022; color: var(--on); border-bottom: 3px solid var(--on); }
 
         .view { display: none; flex: 1; flex-direction: column; align-items: center; padding: 20px; }
         .view.active { display: flex; }
 
-        /* COMPASS VISUAL */
-        #compass-ui {
-            width: 200px; height: 200px; border: 2px solid #004455; border-radius: 50%;
-            position: relative; margin: 20px; display: flex; align-items: center; justify-content: center;
+        /* METER */
+        #meter-container {
+            width: 100%; max-width: 400px; height: 150px;
+            background: #111; border: 2px solid #333;
+            position: relative; margin-bottom: 10px;
         }
-        #needle {
-            width: 4px; height: 90px; background: var(--line);
-            position: absolute; top: 10px; transform-origin: bottom center;
-            transition: transform 0.1s;
-        }
-        #needle::after { content: 'N'; position: absolute; top: -20px; left: -5px; color: var(--line); }
-
-        /* GRAPH */
-        canvas {
-            width: 100%; max-width: 400px; height: 100px;
-            background: #000; border: 1px solid #004455; margin-top: 10px;
+        canvas { width: 100%; height: 100%; display: block; }
+        
+        #threshold-line {
+            position: absolute; width: 100%; height: 2px; background: #fff; top: 70%; opacity: 0.5;
+            pointer-events: none;
         }
 
         /* CONTROLS */
         button {
-            padding: 20px; font-size: 1.1rem; font-weight: bold;
-            background: var(--line); color: #000; border: none; border-radius: 4px;
-            cursor: pointer; width: 100%; max-width: 300px; margin-top: 20px;
+            padding: 20px; font-size: 1.2rem; font-weight: bold;
+            background: var(--on); color: #000; border: none; border-radius: 4px;
+            cursor: pointer; width: 100%; max-width: 300px; margin-bottom: 10px;
         }
+        button.secondary { background: #444; color: #fff; }
+        button:disabled { background: #333; color: #555; cursor: not-allowed; }
+
         input {
-            padding: 15px; background: #002b4d; border: 1px solid #005566; color: #fff;
+            padding: 15px; background: #222; border: 1px solid #444; color: #fff;
             text-align: center; width: 100%; max-width: 300px; 
-            font-family: monospace; font-size: 1.2rem;
+            font-family: monospace; font-size: 1.2rem; margin-bottom: 20px;
         }
 
-        .status { font-size: 0.9rem; color: #668899; margin-top: 10px; }
-        #rx-log { font-size: 1.5rem; color: #fff; min-height: 40px; margin-top:10px; border-bottom:1px solid #333;}
+        .log {
+            font-size: 1.5rem; letter-spacing: 3px; color: var(--on);
+            margin-top: 10px; min-height: 40px; border-bottom: 1px solid #333; width: 100%; text-align: center;
+        }
+        .debug { font-size: 0.8rem; color: #888; margin-top: 5px; }
 
     </style>
 </head>
 <body>
 
     <div class="nav">
-        <div class="nav-item active" onclick="setView('tx')">SENDER (COIL)</div>
-        <div class="nav-item" onclick="setView('rx')">RECEIVER (COMPASS)</div>
+        <div class="nav-item active" onclick="setView('tx')">SENDER</div>
+        <div class="nav-item" onclick="setView('rx')">RECEIVER</div>
     </div>
 
     <div id="tx-view" class="view active">
-        <h2 style="color:var(--line)">INDUCTION COIL</h2>
-        <div style="font-size:0.8rem; text-align:center; margin-bottom:20px; color:#aaa;">
-            Uses Speaker Magnet as Data Antenna.<br>
-            Set Volume to MAX. Place Speaker ON Receiver Compass.
-        </div>
+        <h2 style="color:var(--on)">MAGNETIC COIL</h2>
+        <div class="debug" style="margin-bottom:20px">Vol: MAX | Placement: CRITICAL</div>
 
-        <input type="text" id="tx-input" value="MAG" placeholder="MSG">
-        <button id="tx-btn" onclick="transmit()">ENERGIZE COIL</button>
-        <div id="tx-status" class="status">Ready</div>
+        <input type="text" id="tx-input" value="A" placeholder="MSG">
+        
+        <button class="secondary" onmousedown="startTest(true)" onmouseup="startTest(false)" ontouchstart="startTest(true)" ontouchend="startTest(false)">HOLD FOR TEST SIGNAL</button>
+        <div class="debug" style="margin-bottom:20px">Use this to find sweet spot on Receiver</div>
+        
+        <button id="tx-btn" onclick="transmit()">SEND DATA</button>
+        <div id="tx-status" class="debug">Ready</div>
     </div>
 
     <div id="rx-view" class="view">
-        <h2 style="color:var(--line)">MAGNETOMETER</h2>
+        <h2 style="color:var(--on)">FLUX DETECTOR</h2>
         <button id="perm-btn" onclick="reqPerms()">CALIBRATE SENSORS</button>
         
-        <div id="compass-ui">
-            <div id="needle"></div>
+        <div id="meter-container">
+            <canvas id="scope"></canvas>
+            <div id="threshold-line"></div>
         </div>
+        <div class="debug">CHAOS METER (Must hit Red Line)</div>
 
-        <canvas id="scope"></canvas>
-        <div class="status">Magnetic Deviation</div>
-
-        <div id="rx-log"></div>
-        <div id="rx-debug" class="status">Waiting for flux...</div>
+        <div id="rx-log" class="log"></div>
+        <div id="rx-debug" class="debug">Waiting...</div>
     </div>
 
     <script>
         // --- CONFIG ---
-        const BIT_TIME = 300; // ms per bit (Magnets are slow to settle)
-        const FREQ_LOW = 20;  // 20Hz (Barely audible, high magnetic flux)
-        
+        const BIT_TIME = 600; // Slower is safer
+        const THRESHOLD = 3.0; // How much "chaos" is needed to register a 1
+
         function setView(v) {
             document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
@@ -106,117 +106,104 @@
             event.target.classList.add('active');
         }
 
-        // --- TRANSMITTER (Web Audio API) ---
+        // --- TRANSMITTER (Audio) ---
         const wait = ms => new Promise(r => setTimeout(r, ms));
         let audioCtx;
+        
+        // Brown Noise Generator (Creating Magnetic Chaos)
+        function createNoiseBuffer() {
+            if(!audioCtx) return;
+            const bufferSize = audioCtx.sampleRate * 2; // 2 seconds
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            let lastOut = 0;
+            for (let i = 0; i < bufferSize; i++) {
+                const white = Math.random() * 2 - 1;
+                lastOut = (lastOut + (0.02 * white)) / 1.02;
+                data[i] = lastOut * 3.5; // Amplify
+            }
+            return buffer;
+        }
 
-        async function transmit() {
+        let noiseNode = null;
+
+        async function setMagneticField(on) {
             if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if(audioCtx.state === 'suspended') await audioCtx.resume();
 
+            if(on) {
+                if(noiseNode) return;
+                const buffer = createNoiseBuffer();
+                noiseNode = audioCtx.createBufferSource();
+                noiseNode.buffer = buffer;
+                noiseNode.loop = true;
+                noiseNode.connect(audioCtx.destination);
+                noiseNode.start();
+            } else {
+                if(noiseNode) {
+                    noiseNode.stop();
+                    noiseNode.disconnect();
+                    noiseNode = null;
+                }
+            }
+        }
+
+        function startTest(on) {
+            setMagneticField(on);
+            document.getElementById('tx-status').innerText = on ? "GENERATING FIELD..." : "Ready";
+        }
+
+        async function transmit() {
             const text = document.getElementById('tx-input').value.toUpperCase();
             const btn = document.getElementById('tx-btn');
             const stat = document.getElementById('tx-status');
             btn.disabled = true;
 
-            // Encode to Binary
+            // Encode Binary
             let bits = "";
-            for (let i = 0; i < text.length; i++) {
+            for(let i=0; i<text.length; i++) {
                 bits += text.charCodeAt(i).toString(2).padStart(8, "0");
             }
 
-            stat.innerText = "PILOT TONE (ALIGN NOW)...";
-            playTone(true); // Continuous tone to let user align
-            await wait(2000);
-            playTone(false);
-            await wait(500); // Silence
+            // Sync Sequence
+            stat.innerText = "SYNC...";
+            await setMagneticField(true); await wait(BIT_TIME*2);
+            await setMagneticField(false); await wait(BIT_TIME);
 
-            stat.innerText = "TRANSMITTING...";
-            
+            // Data
             for(let i=0; i<bits.length; i++) {
                 const bit = bits[i];
-                stat.innerText = `Bit ${i+1}/${bits.length}: ${bit}`;
+                stat.innerText = `Sending: ${bit} (${i+1}/${bits.length})`;
                 
-                if(bit === '1') {
-                    playTone(true); // Magnet ON
-                } else {
-                    playTone(false); // Magnet OFF
-                }
+                if(bit === '1') await setMagneticField(true);
+                else await setMagneticField(false);
+                
                 await wait(BIT_TIME);
             }
 
-            playTone(false);
-            stat.innerText = "COMPLETE";
+            await setMagneticField(false);
+            stat.innerText = "Done";
             btn.disabled = false;
         }
 
-        let osc = null;
-        let gain = null;
 
-        function playTone(on) {
-            if(on) {
-                if(osc) return; // Already running
-                osc = audioCtx.createOscillator();
-                gain = audioCtx.createGain();
-                
-                // Square wave creates sharper magnetic edges
-                osc.type = 'square'; 
-                osc.frequency.setValueAtTime(FREQ_LOW, audioCtx.currentTime);
-                
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-            } else {
-                if(osc) {
-                    osc.stop();
-                    osc.disconnect();
-                    osc = null;
-                }
-            }
-        }
-
-        // --- RECEIVER (Compass API) ---
+        // --- RECEIVER (Compass) ---
         const canvas = document.getElementById('scope');
         const ctx = canvas.getContext('2d');
-        const needle = document.getElementById('needle');
-        const rxLog = document.getElementById('rx-log');
-        const rxDebug = document.getElementById('rx-debug');
+        const log = document.getElementById('rx-log');
+        const dbg = document.getElementById('rx-debug');
 
         let isReading = false;
+        let lastAlpha = 0;
+        let chaosLevel = 0;
         let history = new Array(100).fill(0);
-        let baseHeading = 0; // The "Normal" North
-
-        // Logic
         let bitBuffer = "";
-        let signalStart = 0;
-        
-        // We look for Variance (Jitter)
-        // When the magnet is pulsing at 20Hz, the compass value goes crazy (high variance)
-        // When silent, the compass is stable (low variance)
-
-        function draw() {
-            if(!isReading) return;
-            
-            ctx.fillStyle = '#00111f';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.beginPath();
-            ctx.strokeStyle = '#00d2ff';
-            
-            const step = canvas.width / history.length;
-            for(let i=0; i<history.length; i++) {
-                const val = history[i]; // Variance value
-                const y = canvas.height - (val * 10); // Scale up
-                if(i===0) ctx.moveTo(0, y);
-                else ctx.lineTo(i*step, y);
-            }
-            ctx.stroke();
-            requestAnimationFrame(draw);
-        }
+        let isReceiving = false;
 
         function reqPerms() {
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
                 DeviceOrientationEvent.requestPermission()
-                    .then(r => { if (r == 'granted') startRx(); })
+                    .then(r => { if(r=='granted') startRx(); })
                     .catch(alert);
             } else { startRx(); }
         }
@@ -224,78 +211,106 @@
         function startRx() {
             document.getElementById('perm-btn').style.display = 'none';
             isReading = true;
-            window.addEventListener('deviceorientation', handleOrient);
-            
-            // Start Sampling Loop (Decoupled from event rate)
-            setInterval(processSignal, BIT_TIME); 
+            window.addEventListener('deviceorientation', handleMotion);
             draw();
+            setInterval(decodeLoop, BIT_TIME);
         }
 
-        let recentReadings = [];
+        function handleMotion(e) {
+            if(e.alpha === null) return;
+            
+            // Calculate derivative (Rate of Change)
+            // If magnet is ON (Brown Noise), this value spikes wildly
+            const delta = Math.abs(e.alpha - lastAlpha);
+            lastAlpha = e.alpha;
 
-        function handleOrient(e) {
-            // e.alpha is the compass heading (0-360) 
-
-[Image of compass rose]
-
-            // We just need the raw value to detect jitter
-            if(e.alpha !== null) {
-                recentReadings.push(e.alpha);
-                
-                // Visual Needle (Smoothed)
-                needle.style.transform = `rotate(${e.alpha}deg)`;
+            // Simple Low-Pass Filter to smooth visual, but keep magnitude
+            // We specifically look for "unnatural" jumps > 0.5 deg
+            if(delta > 0.5 && delta < 50) { // <50 filters out rotation wraparound (360->0)
+                chaosLevel = (chaosLevel * 0.9) + (delta * 0.1);
+            } else {
+                chaosLevel = chaosLevel * 0.9;
             }
         }
 
-        function processSignal() {
-            if(recentReadings.length < 2) return;
+        function draw() {
+            if(!isReading) return;
+            
+            // Auto-size
+            if(canvas.width !== canvas.parentElement.offsetWidth) {
+                canvas.width = canvas.parentElement.offsetWidth;
+                canvas.height = canvas.parentElement.offsetHeight;
+            }
 
-            // 1. Calculate Standard Deviation (Jitter) of recent readings
-            // If the speaker is blasting 20Hz magnetic flux, this will be HIGH.
-            // If silent, this will be LOW.
+            // Clear
+            ctx.fillStyle = "#000";
+            ctx.fillRect(0,0,canvas.width, canvas.height);
             
-            let sum = 0;
-            for(let v of recentReadings) sum += v;
-            const avg = sum / recentReadings.length;
-            
-            let sqDiff = 0;
-            for(let v of recentReadings) sqDiff += (v - avg) ** 2;
-            const variance = Math.sqrt(sqDiff / recentReadings.length);
-            
-            // Clear buffer for next sample
-            recentReadings = [];
-
-            // Graphing
-            history.push(variance);
+            // Draw History
+            history.push(chaosLevel);
             history.shift();
 
-            // Threshold Logic
-            // A variance > 0.5 usually means magnetic interference
-            const THRESH = 0.5;
+            ctx.beginPath();
+            ctx.strokeStyle = "#ff00ff";
+            ctx.lineWidth = 2;
+            const step = canvas.width / history.length;
             
-            const bit = variance > THRESH ? "1" : "0";
-            
-            rxDebug.innerText = `Flux Variance: ${variance.toFixed(2)} | Bit: ${bit}`;
-            rxDebug.style.color = bit === "1" ? "#fff" : "#447788";
-
-            // Decode Stream
-            bitBuffer += bit;
-            
-            // Simple byte framing
-            if(bitBuffer.length >= 8) {
-                // Check if it looks like a valid char (simple filter)
-                // This is a naive decoder (assumes perfect sync). 
-                // In reality, you'd implement a Start Bit logic.
-                // For this demo, we just dump chars.
-                const byte = bitBuffer.substring(0,8);
-                const val = parseInt(byte, 2);
-                if(val >= 32 && val <= 126) {
-                     rxLog.innerText += String.fromCharCode(val);
-                }
-                bitBuffer = bitBuffer.substring(8); // Shift
+            for(let i=0; i<history.length; i++) {
+                const h = history[i];
+                // Scale: Threshold is approx 30% height
+                const y = canvas.height - (h * 10);
+                if(i===0) ctx.moveTo(0, y);
+                else ctx.lineTo(i*step, y);
             }
+            ctx.stroke();
+
+            // Threshold Visual
+            const tY = canvas.height - (THRESHOLD * 10);
+            ctx.strokeStyle = "#fff";
+            ctx.beginPath(); 
+            ctx.moveTo(0, tY); ctx.lineTo(canvas.width, tY); 
+            ctx.stroke();
+
+            requestAnimationFrame(draw);
         }
 
+        // Logic Loop (Runs every BIT_TIME)
+        function decodeLoop() {
+            if(!isReading) return;
+
+            // Determine Bit
+            const bit = chaosLevel > THRESHOLD ? "1" : "0";
+            
+            // Update UI
+            dbg.innerText = `Chaos: ${chaosLevel.toFixed(2)} | Bit: ${bit}`;
+            dbg.style.color = bit === "1" ? "#ff00ff" : "#555";
+
+            // If high chaos detected for a while, assume sync start
+            if(!isReceiving) {
+                if(bit === "1") {
+                    // Start of transmission (maybe)
+                    isReceiving = true;
+                    bitBuffer = "";
+                    log.innerText = ""; 
+                }
+            } else {
+                // We are receiving
+                bitBuffer += bit;
+                
+                // Try decoding byte
+                if(bitBuffer.length >= 8) {
+                    const byte = bitBuffer.substring(0, 8);
+                    const charCode = parseInt(byte, 2);
+                    
+                    // Simple filter for ASCII text
+                    if(charCode >= 32 && charCode <= 126) {
+                        log.innerText += String.fromCharCode(charCode);
+                    }
+                    
+                    bitBuffer = bitBuffer.substring(8);
+                }
+            }
+        }
     </script>
 </body>
 </html>
