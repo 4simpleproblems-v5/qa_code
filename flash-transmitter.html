@@ -3,355 +3,368 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Semaphore: Stable</title>
+    <title>PixelStream v2: Sparse Matrix</title>
     <style>
-        :root { --on: #ffffff; --off: #000000; --text: #f5f5f5; }
+        :root { --bg: #111; --panel: #1e1e1e; --accent: #32D74B; --text: #eee; }
         body {
-            background-color: #111;
-            color: var(--text);
-            font-family: 'Courier New', monospace;
-            margin: 0;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            -webkit-user-select: none;
+            background-color: var(--bg); color: var(--text);
+            font-family: 'Courier New', monospace; margin: 0;
+            display: flex; flex-direction: column; height: 100vh;
+            overflow: hidden; -webkit-user-select: none;
         }
 
-        /* TABS */
-        .nav { display: flex; height: 60px; border-bottom: 1px solid #333; }
+        /* NAVIGATION */
+        .nav { display: flex; height: 50px; border-bottom: 1px solid #333; }
         .nav-item {
             flex: 1; display: flex; align-items: center; justify-content: center;
-            background: #1a1a1a; cursor: pointer; font-weight: bold; font-size: 1.1rem;
+            background: #222; cursor: pointer; font-weight: bold; border-right: 1px solid #333;
         }
-        .nav-item.active { background: #333; color: #fff; border-bottom: 4px solid #fff; }
+        .nav-item.active { background: var(--accent); color: #000; }
 
-        .screen { display: none; flex: 1; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-        .screen.active { display: flex; }
+        .view { display: none; flex: 1; flex-direction: column; align-items: center; padding: 10px; overflow-y: auto; }
+        .view.active { display: flex; }
 
-        /* TRANSMITTER */
-        #tx-box {
-            width: 250px; height: 250px;
-            background: #000;
-            border: 4px solid #444;
-            margin-bottom: 30px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.5rem; font-weight: bold; color: #000;
-            text-align: center;
+        /* EDITOR */
+        .grid-container {
+            display: grid; grid-template-columns: repeat(32, 1fr);
+            width: 300px; height: 300px; border: 1px solid #555; background: #000;
+            touch-action: none; image-rendering: pixelated;
         }
-        .tx-controls { width: 100%; max-width: 400px; display: flex; gap: 10px; }
-        input {
-            flex: 1; padding: 15px; font-family: monospace; font-size: 1rem;
-            background: #222; border: 1px solid #444; color: #fff; border-radius: 8px;
+        .pixel { background: #000; }
+        .pixel.on { background: #fff; }
+
+        #tx-flash {
+            width: 300px; height: 300px; background: #000; border: 4px solid #fff;
+            display: none; align-items: center; justify-content: center;
+            font-size: 2rem; font-weight: bold; color: #000;
+            position: absolute; top: 10px; z-index: 100;
         }
-        button.send-btn {
-            padding: 0 25px; background: #fff; color: #000; border: none;
-            font-weight: bold; border-radius: 8px; cursor: pointer;
+        #tx-flash.active { display: flex; }
+
+        .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; width: 300px; }
+        button {
+            flex: 1; padding: 12px; border: none; border-radius: 8px; min-width: 80px;
+            font-weight: bold; cursor: pointer; background: #333; color: #fff;
         }
+        button.primary { background: var(--accent); color: #000; flex-basis: 100%; }
+        
+        input[type="file"] { display: none; }
+        .file-btn { background: #0A84FF; color: #fff; }
 
         /* RECEIVER */
-        #cam-container {
-            position: relative; width: 300px; height: 200px;
-            background: #000; border: 2px solid #555; overflow: hidden;
-            margin-bottom: 15px;
+        #cam-box {
+            position: relative; width: 300px; height: 250px;
+            background: #000; border: 2px solid #555; overflow: hidden; margin-bottom: 10px;
         }
-        video { width: 100%; height: 100%; object-fit: cover; filter: contrast(1.2) grayscale(1); }
+        video { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.2); }
         
-        #debug-graph { width: 300px; height: 80px; background: #000; border: 1px solid #333; }
-        
-        .status-row { display: flex; justify-content: space-between; width: 300px; font-size: 0.8rem; color: #888; margin-top: 5px; }
-        
-        #rx-msg {
-            margin-top: 15px; font-size: 1.2rem; color: #0f0; min-height: 1.5rem;
-            text-shadow: 0 0 8px rgba(0,255,0,0.5); word-break: break-all;
-        }
-        
-        #binary-debug { font-size: 0.7rem; color: #444; margin-top: 5px; height: 1rem; }
-        
-        #link-btn {
-            display: none; margin-top: 20px; text-decoration: none;
-            background: #007AFF; color: #fff; padding: 12px 24px; border-radius: 20px;
-        }
+        #rx-canvas { width: 300px; height: 300px; background: #000; border: 1px solid #444; image-rendering: pixelated; }
+        .status-bar { width: 300px; display: flex; justify-content: space-between; font-size: 0.8rem; color: #888; margin-bottom: 5px; }
+        #graph { width: 300px; height: 30px; background: #222; margin-top: 5px; }
 
     </style>
 </head>
 <body>
 
     <div class="nav">
-        <div class="nav-item active" onclick="setTab('tx')">SEND</div>
-        <div class="nav-item" onclick="setTab('rx')">RECEIVE</div>
+        <div class="nav-item active" onclick="setView('tx')">SEND</div>
+        <div class="nav-item" onclick="setView('rx')">RECEIVE</div>
     </div>
 
-    <div id="tx-screen" class="screen active">
-        <div id="tx-box">READY</div>
-        <div class="tx-controls">
-            <input type="text" id="msg-input" placeholder="https://..." value="HELLO">
-            <button class="send-btn" onclick="startTransmission()">GO</button>
-        </div>
-        <p style="font-size: 0.8rem; color: #666; margin-top: 20px;">
-            1. Set Laptop Brightness to 100%<br>
-            2. Receiver must see the Box perfectly
-        </p>
-    </div>
-
-    <div id="rx-screen" class="screen">
-        <button id="cam-btn" class="send-btn" onclick="startCamera()">Start Camera</button>
+    <div id="tx-view" class="view active">
+        <div id="tx-flash"></div>
         
-        <div id="cam-container">
+        <div class="status-bar">
+            <span id="pixel-count">0 White Pixels</span>
+            <span id="compress-stat" style="color:var(--accent)">0s est</span>
+        </div>
+
+        <div class="grid-container" id="grid"></div>
+
+        <div class="controls">
+            <button onclick="clearGrid()">Clear</button>
+            <button class="file-btn" onclick="document.getElementById('file-in').click()">Upload Img</button>
+            <button class="primary" onclick="transmitImage()">TRANSMIT (SPARSE)</button>
+        </div>
+        <input type="file" id="file-in" accept="image/*" onchange="handleImageUpload(this)">
+    </div>
+
+    <div id="rx-view" class="view">
+        <button id="start-cam" class="primary" style="width:300px; margin-bottom:10px;" onclick="startRx()">START CAMERA</button>
+        
+        <div id="cam-box">
             <video id="video" autoplay playsinline muted></video>
-            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:40px; height:40px; border:2px solid #0f0; box-shadow: 0 0 0 100px rgba(0,0,0,0.8);"></div>
+            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:30px; height:30px; border:2px solid #0f0; box-shadow:0 0 0 100px rgba(0,0,0,0.85);"></div>
         </div>
 
-        <canvas id="debug-graph" width="300" height="80"></canvas>
-        
-        <div class="status-row">
-            <span id="state-lbl">STATE: IDLE</span>
-            <span id="thresh-lbl">THR: 0</span>
+        <div class="status-bar">
+            <span id="rx-status">Idle</span>
+            <span id="rx-progress">0%</span>
         </div>
 
-        <div id="rx-msg">Waiting...</div>
-        <div id="binary-debug"></div>
-        <a id="link-btn" href="#" target="_blank">OPEN LINK</a>
+        <canvas id="rx-canvas" width="32" height="32"></canvas>
+        <canvas id="graph" width="300" height="30"></canvas>
     </div>
 
     <script>
-        // --- CONFIGURATION ---
-        const BIT_TIME = 200; // 200ms = 5 bits/sec (Very Safe Speed)
-        const PILOT_TIME = 1500; // 1.5s of solid white to lock sync
+        // --- CONFIG ---
+        const BIT_MS = 60; // Speed of transmission
+        const RES = 32;    // Resolution
 
-        // --- TABS ---
-        function setTab(t) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            document.getElementById(t+'-screen').classList.add('active');
+        // --- NAVIGATION ---
+        function setView(v) {
+            document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+            document.getElementById(v+'-view').classList.add('active');
             event.target.classList.add('active');
         }
 
-        // --- TRANSMITTER LOGIC ---
-        const box = document.getElementById('tx-box');
-        
-        async function startTransmission() {
-            const raw = document.getElementById('msg-input').value;
-            // Packet: STX (0x02) + Text + ETX (0x03)
-            const text = "\x02" + raw + "\x03";
-            
-            // 1. PILOT TONE (Solid White)
-            // This tells the receiver "Get ready, calibrate your white level now"
-            box.innerText = "PILOT...";
-            box.style.background = "#FFF"; 
-            await sleep(PILOT_TIME);
+        // --- EDITOR LOGIC ---
+        const grid = document.getElementById('grid');
+        let pixels = new Array(RES * RES).fill(0); 
 
-            // 2. START EDGE (Drop to Black)
-            // This sharp drop triggers the receiver to start reading data
-            box.innerText = "SYNC!";
-            box.style.background = "#000";
-            await sleep(BIT_TIME);
-
-            // 3. DATA STREAM
-            box.innerText = "SENDING";
-            for(let i=0; i<text.length; i++) {
-                const char = text.charCodeAt(i);
-                // Send 8 bits (MSB first)
-                for(let b=7; b>=0; b--) {
-                    const bit = (char >> b) & 1;
-                    box.style.background = bit ? "#FFF" : "#000";
-                    await sleep(BIT_TIME);
-                }
-            }
-
-            // Reset
-            box.style.background = "#000";
-            box.innerText = "DONE";
+        // Init Grid
+        for(let i=0; i<RES*RES; i++) {
+            const div = document.createElement('div');
+            div.className = 'pixel';
+            grid.appendChild(div);
         }
 
-        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        // Render from array
+        function renderGrid() {
+            pixels.forEach((p, i) => {
+                grid.children[i].className = p ? 'pixel on' : 'pixel';
+            });
+            updateStats();
+        }
+
+        // --- IMAGE UPLOAD ---
+        function handleImageUpload(input) {
+            const file = input.files[0];
+            if(!file) return;
+            const img = new Image();
+            img.onload = () => {
+                // Resize and Threshold
+                const c = document.createElement('canvas');
+                c.width = RES; c.height = RES;
+                const ctx = c.getContext('2d');
+                ctx.fillStyle = "#000"; ctx.fillRect(0,0,RES,RES);
+                // Draw image scaled to 32x32
+                ctx.drawImage(img, 0, 0, RES, RES);
+                const data = ctx.getImageData(0,0,RES,RES).data;
+                
+                // Convert to Monochrome
+                for(let i=0; i<RES*RES; i++) {
+                    const r = data[i*4];
+                    const g = data[i*4+1];
+                    const b = data[i*4+2];
+                    const luma = 0.299*r + 0.587*g + 0.114*b;
+                    pixels[i] = luma > 100 ? 1 : 0; // Threshold
+                }
+                renderGrid();
+            };
+            img.src = URL.createObjectURL(file);
+        }
+
+        function clearGrid() { pixels.fill(0); renderGrid(); }
+
+        // --- SPARSE MATRIX PROTOCOL ---
+        // Protocol: "Delta Cursor"
+        // We only tell the receiver where the WHITE pixels are relative to the last one.
+        // NIBBLES (4 bits):
+        // 0-14: Advance Cursor by (Value+1) and Draw White.
+        // 15:   Advance Cursor by 15 and Draw NOTHING (Skip).
+        function encodeSparse() {
+            let bits = "";
+            let cursor = -1;
+            let whiteCount = 0;
+
+            // Find next white pixel
+            for(let i=0; i<pixels.length; i++) {
+                if(pixels[i] === 1) {
+                    let delta = i - cursor;
+                    
+                    // While distance is too big for one nibble (max 15 jump)
+                    while(delta > 15) {
+                        bits += "1111"; // Send '15' (Skip 15)
+                        delta -= 15;
+                    }
+
+                    // Now delta is 1-15.
+                    // We map 1->0000, 15->1110 (Value = Delta-1)
+                    // Wait, we need 0-14 mapping.
+                    // Delta 1 = Code 0. Delta 15 = Code 14.
+                    const code = (delta - 1).toString(2).padStart(4, "0");
+                    bits += code;
+
+                    cursor = i;
+                    whiteCount++;
+                }
+            }
+            
+            // End of transmission: Send a specific sequence or just stop?
+            // We'll rely on Pilot tone stopping.
+            return { bits, whiteCount };
+        }
+
+        function updateStats() {
+            const data = encodeSparse();
+            const time = Math.ceil((data.bits.length * BIT_MS) / 1000) + 2; // +2 for sync
+            document.getElementById('pixel-count').innerText = data.whiteCount + " White Px";
+            document.getElementById('compress-stat').innerText = "~" + time + "s";
+        }
+
+        // --- TRANSMITTER ---
+        const flashBox = document.getElementById('tx-flash');
+        
+        async function transmitImage() {
+            const { bits } = encodeSparse();
+            flashBox.className = 'active';
+            
+            // 1. PILOT (Solid White - Sync)
+            flashBox.style.background = '#FFF';
+            flashBox.innerText = "PILOT";
+            await wait(1500);
+
+            // 2. START EDGE (Black)
+            flashBox.style.background = '#000';
+            flashBox.innerText = "";
+            await wait(BIT_MS * 2);
+
+            // 3. DATA
+            for(let i=0; i<bits.length; i++) {
+                flashBox.style.background = bits[i] === "1" ? "#FFF" : "#000";
+                await wait(BIT_MS);
+            }
+
+            flashBox.style.background = "#000";
+            flashBox.className = '';
+        }
+        const wait = ms => new Promise(r => setTimeout(r, ms));
 
 
-        // --- RECEIVER LOGIC ---
-        let rxActive = false;
+        // --- RECEIVER ---
+        let rxRunning = false;
         const vid = document.getElementById('video');
-        const cvs = document.createElement('canvas'); // hidden processor
+        const cvs = document.createElement('canvas');
         const ctx = cvs.getContext('2d', { willReadFrequently: true });
         
-        const gCvs = document.getElementById('debug-graph');
-        const gCtx = gCvs.getContext('2d');
-        
-        // Signal History
-        let history = new Array(300).fill(0);
-        let minLvl = 0, maxLvl = 255;
-        
-        // State Machine
-        let state = "SEARCH"; // SEARCH -> PILOT_LOCK -> READING -> DONE
-        let msg = "";
-        let bits = "";
-        let nextSampleTime = 0;
+        const rxCtx = document.getElementById('rx-canvas').getContext('2d');
+        const rxStat = document.getElementById('rx-status');
+        const gCtx = document.getElementById('graph').getContext('2d');
 
-        async function startCamera() {
+        let history = [];
+        let state = "SEARCH";
+        let nextSample = 0;
+        let nibbleBuf = "";
+        let cursor = -1;
+
+        async function startRx() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment' } 
-                });
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
                 vid.srcObject = stream;
-                // iOS Fix
                 vid.onloadedmetadata = () => vid.play();
-                document.getElementById('cam-btn').style.display = 'none';
-                rxActive = true;
+                document.getElementById('start-cam').style.display = 'none';
+                rxRunning = true;
+                
+                // Clear to Black (This fills the "empty spaces" automatically)
+                rxCtx.fillStyle = "#000";
+                rxCtx.fillRect(0,0,32,32);
+                
                 loop();
-            } catch(e) { alert("Cam Error: "+e); }
+            } catch(e) { alert(e); }
         }
 
         function loop() {
-            if(!rxActive) return;
-            
-            // 1. READ LUMA (Brightness)
-            cvs.width = 20; cvs.height = 20;
+            if(!rxRunning) return;
+
+            // 1. Luma
+            cvs.width=20; cvs.height=20;
             ctx.drawImage(vid, vid.videoWidth/2-10, vid.videoHeight/2-10, 20, 20, 0, 0, 20, 20);
-            const frame = ctx.getImageData(0,0,20,20).data;
+            const d = ctx.getImageData(0,0,20,20).data;
             let sum = 0;
-            // Average R, G, B for Luma (Solves the "Yellow" issue)
-            for(let i=0; i<frame.length; i+=4) {
-                sum += (frame[i] + frame[i+1] + frame[i+2]) / 3;
-            }
-            const luma = sum / (frame.length/4);
+            for(let i=0; i<d.length; i+=4) sum += (d[i]+d[i+1]+d[i+2])/3;
+            const luma = sum / (d.length/4);
 
-            // 2. UPDATE HISTORY & RANGES
+            // 2. Adaptive Threshold
             history.push(luma);
-            history.shift();
-            
-            // Dynamic Ranging (Look at last 3 seconds of data)
-            // We use this to draw the "Blue Line" (Threshold)
-            const recent = history.slice(-150); // last ~3s approx
-            const localMin = Math.min(...recent);
-            const localMax = Math.max(...recent);
-            // Midpoint threshold
-            const thresh = (localMax + localMin) / 2;
-
-            // 3. LOGIC
-            const now = Date.now();
+            if(history.length > 50) history.shift();
+            const min = Math.min(...history);
+            const max = Math.max(...history);
+            const thresh = (min + max) / 2;
             const isHigh = luma > thresh;
 
-            if (state === "SEARCH") {
-                // Look for the PILOT TONE (Sustained High for > 500ms)
-                // If we see High for a long time, we know transmission is starting
-                if (isHigh) {
-                    // Check if we have been high for a while? 
-                    // Simpler: Just look for the DROP.
-                    // If current is High, check previous values.
-                    // Actually, simpler logic:
-                    // Just wait for the Drop-to-Black while 'max' is high.
-                    
-                    // If Luma is very high (Pilot)
-                    if (luma > 200) { 
-                        state = "PILOT_LOCK"; 
-                    }
+            const now = Date.now();
+
+            if(state === "SEARCH") {
+                rxStat.innerText = "Waiting for Pilot...";
+                // Lock Pilot
+                if(luma > 200 && (max-min) < 60) {
+                     // Wait for drop
+                }
+                // Check Drop
+                if(isHigh && (max-min) > 50) state = "PILOT";
+            }
+            else if(state === "PILOT") {
+                rxStat.innerText = "LOCKED";
+                rxStat.style.color = "#FFF";
+                if(!isHigh) {
+                    state = "READ";
+                    nextSample = now + (BIT_MS * 1.5); // Align to first bit center
+                    nibbleBuf = "";
+                    cursor = -1;
+                    rxCtx.fillStyle = "#222"; rxCtx.fillRect(0,0,32,32); // Reset
+                    rxStat.innerText = "RECEIVING...";
+                    rxStat.style.color = "#32D74B";
                 }
             }
-            else if (state === "PILOT_LOCK") {
-                // We are locked onto the White Pilot tone.
-                // WAITING FOR THE DROP (Start Edge)
-                if (!isHigh) { 
-                    // Signal just dropped to LOW!
-                    // This is T=0 of the START SYNC.
-                    // The first actual data bit starts in BIT_TIME ms.
-                    // We want to sample in the MIDDLE of that bit.
-                    // So wait BIT_TIME + (BIT_TIME/2).
-                    
-                    state = "READING";
-                    // Skip the 'Sync' bit (Black), jump to first data bit
-                    nextSampleTime = now + BIT_TIME + (BIT_TIME/2);
-                    
-                    msg = "";
-                    bits = "";
-                    document.getElementById('rx-msg').innerText = "Receiving...";
-                    document.getElementById('rx-msg').style.color = "#FFD60A";
-                }
-            }
-            else if (state === "READING") {
-                if (now >= nextSampleTime) {
-                    nextSampleTime += BIT_TIME;
-                    
-                    // Read Bit
-                    const bit = isHigh ? "1" : "0";
-                    bits += bit;
-                    
-                    // Visual Debug
-                    document.getElementById('binary-debug').innerText = bits.slice(-16); // Show last 16 bits
+            else if(state === "READ") {
+                if(now >= nextSample) {
+                    nextSample += BIT_MS;
+                    nibbleBuf += isHigh ? "1" : "0";
 
-                    // Do we have a full byte (8 bits)?
-                    if (bits.length % 8 === 0) {
-                        const byteStr = bits.slice(-8);
-                        const charCode = parseInt(byteStr, 2);
-                        const char = String.fromCharCode(charCode);
-
-                        if (char === "\x02") {
-                            // STX - Start of Text (Hidden)
-                            msg = ""; 
-                        }
-                        else if (char === "\x03") {
-                            // ETX - End of Text
-                            state = "DONE";
-                            finish();
-                        }
-                        else {
-                            msg += char;
-                            document.getElementById('rx-msg').innerText = msg;
-                        }
+                    if(nibbleBuf.length === 4) {
+                        processNibble(nibbleBuf);
+                        nibbleBuf = "";
                     }
                 }
-                
-                // Timeout Watchdog
-                if (now > nextSampleTime + 2000) {
+                if(now > nextSample + 2000) {
                     state = "SEARCH";
-                    document.getElementById('rx-msg').innerText = "Signal Lost";
-                    document.getElementById('rx-msg').style.color = "red";
+                    rxStat.innerText = "COMPLETE";
+                    rxStat.style.color = "#888";
                 }
             }
 
-            // 4. DRAW GRAPH
-            drawGraph(luma, thresh, localMin, localMax);
+            // Graph
+            gCtx.fillStyle="#222"; gCtx.fillRect(0,0,300,30);
+            const h=30; 
+            gCtx.fillStyle="#0f0"; gCtx.fillRect(150, h-(luma/255)*h, 4, 4);
+            gCtx.fillStyle="blue"; gCtx.fillRect(0, h-(thresh/255)*h, 300, 1);
             
-            // Status UI
-            document.getElementById('state-lbl').innerText = "STATE: " + state;
-            document.getElementById('thresh-lbl').innerText = "LUMA: " + Math.round(luma);
-
             requestAnimationFrame(loop);
         }
 
-        function finish() {
-            document.getElementById('rx-msg').style.color = "#0f0";
-            if (msg.startsWith("http")) {
-                const btn = document.getElementById('link-btn');
-                btn.href = msg;
-                btn.style.display = "inline-block";
-                btn.innerText = "OPEN: " + msg.substring(0, 15) + "...";
-            }
-            state = "SEARCH";
-        }
-
-        function drawGraph(curr, thresh, min, max) {
-            gCtx.fillStyle = "#000";
-            gCtx.fillRect(0,0,300,80);
+        function processNibble(bits) {
+            const val = parseInt(bits, 2);
             
-            // Draw Signal
-            gCtx.beginPath();
-            gCtx.strokeStyle = "#0f0";
-            gCtx.lineWidth = 2;
-            for(let i=0; i<300; i++) {
-                const y = 80 - (history[i] / 255 * 80);
-                if(i==0) gCtx.moveTo(i,y); else gCtx.lineTo(i,y);
+            if(val === 15) {
+                // SKIP Command: Just move cursor, draw nothing
+                cursor += 15;
+            } else {
+                // PAINT Command: Move (val+1), then draw
+                const jump = val + 1;
+                cursor += jump;
+                drawPixel(cursor);
             }
-            gCtx.stroke();
-
-            // Draw Threshold (Blue Line)
-            const threshY = 80 - (thresh / 255 * 80);
-            gCtx.beginPath();
-            gCtx.strokeStyle = "#00f";
-            gCtx.lineWidth = 1;
-            gCtx.moveTo(0, threshY);
-            gCtx.lineTo(300, threshY);
-            gCtx.stroke();
         }
 
+        function drawPixel(idx) {
+            if(idx >= 1024) return;
+            const x = idx % 32;
+            const y = Math.floor(idx / 32);
+            rxCtx.fillStyle = "#FFF";
+            rxCtx.fillRect(x, y, 1, 1);
+        }
     </script>
 </body>
 </html>
