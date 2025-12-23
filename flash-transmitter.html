@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quad-Link: Robust</title>
+    <title>Project Hyper-Grid</title>
     <style>
-        :root { --bg: #111; --text: #eee; --accent: #FF2D55; --success: #32D74B; }
+        :root { --bg: #050505; --text: #0f0; --dim: #003300; --accent: #00ff00; }
         body {
             background-color: var(--bg); color: var(--text);
             font-family: 'Courier New', monospace; margin: 0;
@@ -13,121 +13,134 @@
             overflow: hidden; -webkit-user-select: none;
         }
 
-        /* NAV */
+        /* UI STRUCTURE */
         .nav { display: flex; height: 50px; border-bottom: 1px solid #333; }
         .nav-item {
             flex: 1; display: flex; align-items: center; justify-content: center;
-            background: #1a1a1a; cursor: pointer; font-weight: bold; border-right: 1px solid #333;
+            background: #111; cursor: pointer; font-weight: bold; border-right: 1px solid #333; color: #666;
         }
-        .nav-item.active { background: var(--accent); color: #fff; }
+        .nav-item.active { background: var(--dim); color: var(--accent); border-bottom: 2px solid var(--accent); }
 
-        .view { display: none; flex: 1; flex-direction: column; align-items: center; padding: 20px; }
+        .view { display: none; flex: 1; flex-direction: column; align-items: center; padding: 10px; }
         .view.active { display: flex; }
 
-        /* TRANSMITTER */
+        /* TRANSMITTER 4x4 GRID */
         #grid-wrapper {
             position: relative; width: 300px; height: 300px; margin-bottom: 20px;
+            border: 2px solid #333; padding: 5px;
         }
         #tx-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-template-rows: 1fr 1fr;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
             width: 100%; height: 100%;
-            border: 4px solid #fff;
-            box-sizing: border-box;
+            gap: 2px;
         }
-        .quad {
-            background: #000; border: 1px solid #333;
+        .cell {
+            background: #000; border: 1px solid #222;
             display: flex; align-items: center; justify-content: center;
-            font-size: 1.5rem; font-weight: bold; color: #555;
+            font-size: 0.8rem; color: #444; font-weight: bold;
         }
-        .quad.on { background: #FFF; color: #000; }
+        .cell.on { background: #FFF; color: #000; border-color: #FFF; }
         
-        #q0::after { content: "CLK"; }
-        #q1::after { content: "1"; }
-        #q2::after { content: "2"; }
-        #q3::after { content: "4"; }
+        /* The Clock Cell (Top Left) */
+        #c0 { border: 2px solid var(--accent); } 
+        #c0::after { content: "CLK"; font-size: 0.6rem; }
 
-        input { padding: 15px; background: #222; border: 1px solid #444; color: #fff; text-align: center; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
-        button { width: 100%; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; background: var(--accent); color: #fff; }
+        .controls { width: 100%; max-width: 300px; display: flex; flex-direction: column; gap: 10px; }
+        input[type="text"] { 
+            padding: 15px; background: #111; border: 1px solid #333; color: #fff; 
+            text-align: center; width: 100%; box-sizing: border-box; font-family: monospace;
+        }
+        button { 
+            padding: 15px; border: none; border-radius: 4px; font-weight: bold; 
+            cursor: pointer; background: var(--accent); color: #000; font-size: 1rem;
+        }
+        button:disabled { background: #333; color: #555; }
 
         /* RECEIVER */
-        #cam-box {
+        #cam-container {
             position: relative; width: 300px; height: 300px;
             background: #000; border: 2px solid #555; overflow: hidden; margin-bottom: 10px;
         }
-        video { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.2); }
+        video { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.3) brightness(1.1); }
         
-        /* Debug Overlays */
-        .sensor-pt {
-            position: absolute; width: 20px; height: 20px;
-            border: 2px solid red; border-radius: 50%;
-            transform: translate(-50%, -50%); z-index: 10;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 10px; color: red; font-weight: bold;
-            background: rgba(0,0,0,0.5);
+        /* Visual Debug Canvas */
+        #overlay {
+            position: absolute; top:0; left:0; width:100%; height:100%;
         }
-        .sensor-pt.active { border-color: #0f0; color: #0f0; background: rgba(0,255,0,0.2); }
 
         #rx-log { 
-            width: 300px; height: 80px; background: #222; border: 1px solid #333; 
-            padding: 10px; color: var(--success); font-size: 1.2rem; overflow-wrap: break-word;
+            width: 300px; height: 100px; background: #111; border: 1px solid #333; 
+            padding: 10px; color: var(--accent); font-size: 1rem; overflow-y: auto;
+            word-break: break-all;
         }
-        
-        #status-bar { width: 300px; display: flex; justify-content: space-between; font-size: 0.8rem; color: #888; margin-bottom: 5px; }
+
+        .slider-row { width: 300px; display: flex; align-items: center; justify-content: space-between; font-size: 0.7rem; color: #888; margin-bottom: 5px; }
+        input[type="range"] { flex: 1; margin: 0 10px; accent-color: var(--accent); }
 
     </style>
 </head>
 <body>
 
     <div class="nav">
-        <div class="nav-item active" onclick="setView('tx')">SENDER</div>
+        <div class="nav-item active" onclick="setView('tx')">SENDER (4x4)</div>
         <div class="nav-item" onclick="setView('rx')">RECEIVER</div>
     </div>
 
     <div id="tx-view" class="view active">
         <div id="grid-wrapper">
             <div id="tx-grid">
-                <div id="q0" class="quad"></div>
-                <div id="q1" class="quad"></div>
-                <div id="q2" class="quad"></div>
-                <div id="q3" class="quad"></div>
-            </div>
+                </div>
         </div>
 
-        <input type="text" id="tx-input" value="ok" placeholder="Message">
-        <button id="tx-btn" onclick="transmit()">SEND DATA</button>
-        <div style="font-size:0.75rem; color:#666; margin-top:10px; text-align:center;">
-            Set brightness to 100%.<br>Align phone during the 2s white flash.
+        <div class="controls">
+            <input type="text" id="tx-input" value="HYPER-GRID ACTIVE" placeholder="Message">
+            <button id="tx-btn" onclick="transmit()">SEND (15 bits/frame)</button>
+        </div>
+        <div style="font-size:0.7rem; color:#666; margin-top:10px; text-align:center;">
+            Speed: 450ms/frame (High Reliability)
         </div>
     </div>
 
     <div id="rx-view" class="view">
-        <button id="cam-btn" onclick="startRx()" style="margin-bottom:15px;">START CAMERA</button>
+        <button id="cam-btn" onclick="startRx()" style="width:300px; margin-bottom:15px;">START CAMERA</button>
         
-        <div id="cam-box">
+        <div id="cam-container">
             <video id="video" autoplay playsinline muted></video>
-            
-            <div id="s0" class="sensor-pt" style="top:25%; left:25%;">C</div>
-            <div id="s1" class="sensor-pt" style="top:25%; left:75%;">1</div>
-            <div id="s2" class="sensor-pt" style="top:75%; left:25%;">2</div>
-            <div id="s3" class="sensor-pt" style="top:75%; left:75%;">4</div>
-            
-            <div style="position:absolute; top:50%; left:0; width:100%; height:1px; background:rgba(255,255,255,0.3);"></div>
-            <div style="position:absolute; top:0; left:50%; width:1px; height:100%; background:rgba(255,255,255,0.3);"></div>
+            <canvas id="overlay" width="300" height="300"></canvas>
         </div>
 
-        <div id="status-bar">
-            <span id="state-lbl">State: IDLE</span>
-            <span id="fps-lbl"></span>
+        <div class="slider-row">
+            <span>GRID SIZE</span>
+            <input type="range" id="inset-slider" min="0" max="100" value="20">
+            <span>ANGLE</span>
         </div>
-        <div id="rx-log"></div>
+
+        <div class="slider-row">
+            <span id="state-lbl">IDLE</span>
+            <span id="angle-stat">0°</span>
+        </div>
+
+        <div id="rx-log">Waiting...</div>
     </div>
 
     <script>
         // --- CONFIG ---
-        const FRAME_MS = 200; // 200ms is safe. 
-        // Sync Pilot: 2000ms
+        const FRAME_MS = 450; // Slower frame rate for stability
+        const PILOT_MS = 2000;
+
+        // Generate Grid UI
+        const gridEl = document.getElementById('tx-grid');
+        const cells = [];
+        for(let i=0; i<16; i++) {
+            const d = document.createElement('div');
+            d.id = 'c'+i;
+            d.className = 'cell';
+            d.innerText = i === 0 ? "" : i;
+            gridEl.appendChild(d);
+            cells.push(d);
+        }
 
         function setView(v) {
             document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
@@ -137,83 +150,80 @@
         }
 
         // --- TRANSMITTER ---
-        const quads = [
-            document.getElementById('q0'),
-            document.getElementById('q1'),
-            document.getElementById('q2'),
-            document.getElementById('q3')
-        ];
-
         async function transmit() {
             const text = document.getElementById('tx-input').value;
             const btn = document.getElementById('tx-btn');
             btn.disabled = true;
 
-            // Convert text to binary
+            // Convert to Binary
             let bits = "";
             for(let i=0; i<text.length; i++) {
                 bits += text.charCodeAt(i).toString(2).padStart(8, "0");
             }
-            // Pad to multiple of 3
-            while(bits.length % 3 !== 0) bits += "0";
+            // Pad to multiple of 15 (Since we send 15 data bits per frame)
+            while(bits.length % 15 !== 0) bits += "0";
 
-            // 1. PILOT (All White - Auto Exposure Lock)
+            // 1. PILOT (All White)
             btn.innerText = "CALIBRATING...";
             setAll(true);
-            await wait(2000);
+            await wait(PILOT_MS);
 
             // 2. SYNC (All Black)
             btn.innerText = "SYNC...";
             setAll(false);
             await wait(FRAME_MS * 2);
 
-            // 3. DATA
+            // 3. DATA STREAM
             btn.innerText = "TRANSMITTING...";
             let clk = false;
-            
-            for(let i=0; i<bits.length; i+=3) {
-                clk = !clk; // Toggle clock
-                const b0 = bits[i] === '1';
-                const b1 = bits[i+1] === '1';
-                const b2 = bits[i+2] === '1';
-                
-                setQuad(0, clk);
-                setQuad(1, b0);
-                setQuad(2, b1);
-                setQuad(3, b2);
-                
+
+            // Process 15 bits at a time
+            for(let i=0; i<bits.length; i+=15) {
+                clk = !clk; // Toggle Clock (Cell 0)
+                setCell(0, clk);
+
+                // Set Cells 1-15
+                for(let k=0; k<15; k++) {
+                    // Safety check if we run out of bits
+                    const bit = (i+k < bits.length) ? bits[i+k] === '1' : false;
+                    setCell(k+1, bit);
+                }
                 await wait(FRAME_MS);
             }
 
-            // End
             setAll(false);
-            btn.innerText = "SEND DATA";
+            btn.innerText = "SEND (15 bits/frame)";
             btn.disabled = false;
         }
 
-        function setQuad(idx, on) { quads[idx].className = on ? 'quad on' : 'quad'; }
-        function setAll(on) { quads.forEach(q => q.className = on ? 'quad on' : 'quad'); }
+        function setCell(idx, on) { cells[idx].className = on ? 'cell on' : 'cell'; }
+        function setAll(on) { cells.forEach(c => c.className = on ? 'cell on' : 'cell'); }
         const wait = ms => new Promise(r => setTimeout(r, ms));
 
 
         // --- RECEIVER ---
         let rxRunning = false;
         const vid = document.getElementById('video');
-        const cvs = document.createElement('canvas'); 
-        const ctx = cvs.getContext('2d', { willReadFrequently: true });
-        
-        const sensors = [
-            document.getElementById('s0'),
-            document.getElementById('s1'),
-            document.getElementById('s2'),
-            document.getElementById('s3')
-        ];
+        const overlay = document.getElementById('overlay');
+        const oCtx = overlay.getContext('2d');
         const log = document.getElementById('rx-log');
         const stateLbl = document.getElementById('state-lbl');
+        const angleStat = document.getElementById('angle-stat');
+        
+        // Processing Canvas
+        const cvs = document.createElement('canvas'); 
+        const ctx = cvs.getContext('2d', { willReadFrequently: true });
 
+        // Logic
         let lastClk = -1;
         let bitBuffer = "";
-        let state = "SEARCH"; // SEARCH -> LOCKED -> READ
+        let state = "SEARCH";
+        let gridInset = 20;
+
+        // UI Slider
+        document.getElementById('inset-slider').addEventListener('input', (e) => {
+            gridInset = parseInt(e.target.value);
+        });
 
         async function startRx() {
             try {
@@ -230,64 +240,93 @@
             if(!rxRunning) return;
 
             // 1. Snapshot
-            cvs.width = 100; cvs.height = 100;
-            ctx.drawImage(vid, 0, 0, 100, 100);
-            const frame = ctx.getImageData(0,0,100,100).data;
+            cvs.width = 300; cvs.height = 300;
+            ctx.drawImage(vid, 0, 0, 300, 300);
+            const frame = ctx.getImageData(0,0,300,300).data;
 
-            // 2. Read 4 Points
-            // We use slightly inset coordinates (25/75) to hit the center of the quads
-            const rawVals = [
-                getLuma(frame, 25, 25), // Clock (Top Left)
-                getLuma(frame, 75, 25), // Bit 0 (Top Right)
-                getLuma(frame, 25, 75), // Bit 1 (Bottom Left)
-                getLuma(frame, 75, 75)  // Bit 2 (Bottom Right)
-            ];
+            // 2. Calculate Grid Points (Perspective Mesh)
+            // We use the 'gridInset' to shrink the sampling area
+            const size = 300 - (gridInset * 2);
+            const cellSize = size / 4;
+            const start = gridInset;
+            
+            // We store the read values here (0 or 1)
+            const readings = []; 
+            
+            // Clear Overlay
+            oCtx.clearRect(0,0,300,300);
+            
+            // Draw The "Mesh" (Shows angle/alignment)
+            oCtx.strokeStyle = "rgba(0, 255, 0, 0.5)";
+            oCtx.lineWidth = 1;
+            oCtx.beginPath();
 
-            // 3. Dynamic Threshold
-            // If the "Clock" square is flashing, we can estimate min/max.
-            // For now, let's use a simple heuristic: Bright > 100 (assuming good screen brightness)
-            // Visual Debug: If > 100, turn sensor green
-            const bools = rawVals.map((v, i) => {
-                const active = v > 100;
-                sensors[i].className = active ? 'sensor-pt active' : 'sensor-pt';
-                return active ? 1 : 0;
-            });
+            // Loop 4x4
+            for(let y=0; y<4; y++) {
+                for(let x=0; x<4; x++) {
+                    // Calculate center of this cell
+                    const cx = start + (x * cellSize) + (cellSize/2);
+                    const cy = start + (y * cellSize) + (cellSize/2);
+                    
+                    // Draw grid line (Visual only)
+                    oCtx.rect(start + x*cellSize, start + y*cellSize, cellSize, cellSize);
 
-            const clk = bools[0];
+                    // Read Luma at center
+                    const luma = getAvgLuma(frame, cx, cy);
+                    
+                    // Threshold (Simple > 100 for high contrast screens)
+                    const on = luma > 100;
+                    readings.push(on ? 1 : 0);
 
-            // 4. Logic
-            if(state === "SEARCH") {
-                stateLbl.innerText = "State: ALIGN PHONE";
-                // If we see all ON (Pilot signal)
-                if(bools[0] && bools[1] && bools[2] && bools[3]) {
-                    state = "PILOT";
+                    // Draw Sample Dot
+                    oCtx.fillStyle = on ? "#0f0" : "#333";
+                    oCtx.fillRect(cx-3, cy-3, 6, 6);
                 }
             }
+            oCtx.stroke();
+
+            // 3. Angle Calculation (Fake/Visual)
+            // Calculate brightness delta between Top-Left and Bottom-Right to guess "glare" angle
+            // This is just a visual helper
+            const tl = getAvgLuma(frame, start, start);
+            const br = getAvgLuma(frame, 300-start, 300-start);
+            const tilt = Math.round((tl - br) / 10);
+            angleStat.innerText = `Light Tilt: ${tilt}`;
+
+
+            // 4. Decode Logic
+            const clk = readings[0]; // Cell 0 is Clock
+            
+            if(state === "SEARCH") {
+                stateLbl.innerText = "ALIGN GRID";
+                // If all cells are ON (Pilot)
+                const sum = readings.reduce((a,b)=>a+b,0);
+                if(sum === 16) state = "PILOT";
+            }
             else if(state === "PILOT") {
-                stateLbl.innerText = "State: PILOT LOCKED";
-                stateLbl.style.color = "#FF2D55";
-                
-                // Wait for All OFF (Sync drop)
-                if(!bools[0] && !bools[1]) {
+                stateLbl.innerText = "LOCKED";
+                stateLbl.style.color = "#FFF";
+                // Wait for all OFF (Sync drop)
+                const sum = readings.reduce((a,b)=>a+b,0);
+                if(sum === 0) {
                     state = "READ";
-                    lastClk = 0; // Expecting clock to go High next
+                    lastClk = 0; // Expecting Clock High next
                     bitBuffer = "";
                     log.innerText = "";
-                    stateLbl.innerText = "State: READING";
-                    stateLbl.style.color = "#32D74B";
+                    stateLbl.innerText = "RECEIVING";
+                    stateLbl.style.color = "#0f0";
                 }
             }
             else if(state === "READ") {
-                // DDR Logic: Did Clock Change?
+                // DDR: Read on clock toggle
                 if(clk !== lastClk) {
                     lastClk = clk;
                     
-                    // Read Data Bits
-                    const b0 = bools[1];
-                    const b1 = bools[2];
-                    const b2 = bools[3];
-                    
-                    bitBuffer += "" + b0 + b1 + b2;
+                    // Cells 1-15 are data
+                    // reading array index corresponds to cell index
+                    for(let i=1; i<16; i++) {
+                        bitBuffer += readings[i];
+                    }
 
                     // Decode Bytes
                     while(bitBuffer.length >= 8) {
@@ -295,30 +334,35 @@
                         bitBuffer = bitBuffer.substring(8);
                         
                         const val = parseInt(byte, 2);
+                        // Filter for printable ASCII
                         if(val >= 32 && val <= 126) {
                             log.innerText += String.fromCharCode(val);
+                            log.scrollTop = log.scrollHeight;
                         }
                     }
                 }
-                
-                // Timeout (Reset if no clock change)
-                // Omitted for simplicity
             }
 
             requestAnimationFrame(loop);
         }
 
-        function getLuma(data, x, y) {
-            // Sample 3x3 average
+        function getAvgLuma(data, x, y) {
+            // 5x5 sampling
             let sum = 0;
-            for(let dy=-1; dy<=1; dy++) {
-                for(let dx=-1; dx<=1; dx++) {
-                    const i = ((y+dy)*100 + (x+dx)) * 4;
-                    sum += (data[i] + data[i+1] + data[i+2]) / 3;
+            let c = 0;
+            x = Math.floor(x); y = Math.floor(y);
+            for(let dy=-2; dy<=2; dy++) {
+                for(let dx=-2; dx<=2; dx++) {
+                    const i = ((y+dy)*300 + (x+dx)) * 4;
+                    if(i>=0 && i<data.length) {
+                        sum += (data[i] + data[i+1] + data[i+2]) / 3;
+                        c++;
+                    }
                 }
             }
-            return sum / 9;
+            return sum/c;
         }
+
     </script>
 </body>
 </html>
